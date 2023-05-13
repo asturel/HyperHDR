@@ -109,7 +109,7 @@ private:
 	/// @param isOn True, if to switch on device
 	/// @return Command to switch device on/off
 	///
-	QString getOnOffRequest(bool isOn) const;
+	QJsonObject getOnOffRequest(bool isOn) const;
 
 	///REST-API wrapper
 	ProviderRestApi* _restApi;
@@ -119,6 +119,7 @@ private:
 	bool	_overrideBrightness;
 	int		_brightnessLevel;
 	bool	_restoreConfig;
+	bool    _isStayOnAfterStreaming;
 	QJsonDocument _configBackup;
 };
 

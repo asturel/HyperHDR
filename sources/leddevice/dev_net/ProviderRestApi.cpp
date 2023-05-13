@@ -149,6 +149,11 @@ httpResponse ProviderRestApi::put(const QString& body)
 	return put(getUrl(), body);
 }
 
+httpResponse ProviderRestApi::put(const QJsonObject &body)
+{
+	return put( getUrl(), QJsonDocument(body).toJson(QJsonDocument::Compact));
+}
+
 httpResponse ProviderRestApi::post(const QString& body)
 {
 	return post(getUrl(), body);
@@ -158,28 +163,6 @@ httpResponse ProviderRestApi::post(const QString& body)
 httpResponse ProviderRestApi::get()
 {
 	return get(getUrl());
-}
-
-bool ProviderRestApi::waitForResult(QNetworkReply* networkReply)
-{
-	bool networkTimeout = false;
-
-	if (!networkReply->isFinished() && networkReply->error() == QNetworkReply::NoError)
-	{
-		if (!_resultLocker.try_lock_until(std::chrono::steady_clock::now() + std::chrono::milliseconds(TIMEOUT)))
-		{
-			if (!networkReply->isFinished())
-			{
-				networkTimeout = true;
-				disconnect(networkReply, &QNetworkReply::finished, nullptr, nullptr);
-				QTimer::singleShot(0, networkReply, &QNetworkReply::abort);
-			}
-		}
-		else
-			_resultLocker.unlock();
-	}
-
-	return networkTimeout;
 }
 
 httpResponse ProviderRestApi::executeOperation(QNetworkAccessManager::Operation op, const QUrl& url, const QString& body)
@@ -197,6 +180,8 @@ httpResponse ProviderRestApi::executeOperation(QNetworkAccessManager::Operation 
 	}
 
 	Debug(_log, "%s begin: [%s] [%s]", QSTRING_CSTR(opCode), QSTRING_CSTR(url.toString()), QSTRING_CSTR(body));
+
+
 
 
 	// Perform request
@@ -229,6 +214,21 @@ httpResponse ProviderRestApi::executeOperation(QNetworkAccessManager::Operation 
 	networkReply->deleteLater();
 
 	return response;
+}
+
+bool ProviderRestApi::waitForResult(QNetworkReply* networkReply)
+{
+	bool networkTimeout = false;
+
+	if (!networkReply->isFinished() && networkReply->error() == QNetworkReply::NoError &&
+		!_resultLocker.try_lock_until(std::chrono::steady_clock::now() + std::chrono::milliseconds(TIMEOUT)) && !networkReply->isFinished())
+	{
+		networkTimeout = true;
+		disconnect(networkReply, &QNetworkReply::finished, nullptr, nullptr);
+		QTimer::singleShot(0, networkReply, &QNetworkReply::abort);
+	}
+
+	return networkTimeout;
 }
 
 void ProviderRestApi::aquireResultLock()
