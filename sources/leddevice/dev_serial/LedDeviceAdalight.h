@@ -27,6 +27,9 @@ public:
 	/// @return LedDevice constructed
 	static LedDevice* construct(const QJsonObject& deviceConfig);
 
+private slots:
+	void readFeedback() override;
+
 private:
 
 	///

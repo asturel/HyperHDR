@@ -159,3 +159,28 @@ void LedDeviceAdalight::whiteChannelExtension(uint8_t*& writer)
 		*(writer++) = _white_channel_blue;
 	}
 }
+
+void LedDeviceAdalight::readFeedback()
+{
+	if (_awa_mode)
+	{
+		bool continuousLines {true};
+		while ( _rs232Port.canReadLine() )
+		{
+			QByteArray record = _rs232Port.readLine();
+			if (record.startsWith("FPS:"))
+			{
+				if (continuousLines)
+				{
+					continuousLines = false;
+				}
+				Debug(_log, "Statistics %s", record.trimmed().constData());
+			}
+			else
+			{
+				std::cout << record.toStdString() << std::flush;
+				continuousLines = true;
+			}
+		}
+	}
+}

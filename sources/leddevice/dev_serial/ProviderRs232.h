@@ -97,6 +97,8 @@ protected slots:
 	///
 	void setInError(const QString& errorMsg) override;
 
+	virtual void readFeedback();
+
 public slots:
 	void waitForExitStats(bool force);
 
