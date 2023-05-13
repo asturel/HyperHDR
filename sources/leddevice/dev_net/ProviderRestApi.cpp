@@ -51,7 +51,7 @@ ProviderRestApi::ProviderRestApi(const QString& host, int port, const QString& b
 {
 	if (_networkWorker == nullptr)
 	{
-		_networkWorker = std::unique_ptr<networkHelper>(new networkHelper());		
+		_networkWorker = std::unique_ptr<networkHelper>(new networkHelper());
 	}
 
 	qRegisterMetaType<QNetworkRequest>();
@@ -97,8 +97,8 @@ void ProviderRestApi::appendPath(const QString& path)
 }
 
 void ProviderRestApi::appendPath(QString& path, const QString& appendPath) const
-{	
-	path = QUrl(path).resolved(appendPath).toString();	
+{
+	path = QUrl(path).resolved(appendPath).toString();
 }
 
 void ProviderRestApi::addHeader(const QString &key, const QString &value)
@@ -149,6 +149,11 @@ httpResponse ProviderRestApi::put(const QString& body)
 	return put(getUrl(), body);
 }
 
+httpResponse ProviderRestApi::put(const QJsonObject &body)
+{
+	return put( getUrl(), QJsonDocument(body).toJson(QJsonDocument::Compact));
+}
+
 httpResponse ProviderRestApi::post(const QString& body)
 {
 	return post(getUrl(), body);
@@ -178,7 +183,7 @@ bool ProviderRestApi::waitForResult(QNetworkReply* networkReply)
 		else
 			_resultLocker.unlock();
 	}
-	
+
 	return networkTimeout;
 }
 
@@ -197,6 +202,8 @@ httpResponse ProviderRestApi::executeOperation(QNetworkAccessManager::Operation 
 	}
 
 	Debug(_log, "%s begin: [%s] [%s]", QSTRING_CSTR(opCode), QSTRING_CSTR(url.toString()), QSTRING_CSTR(body));
+
+
 
 
 	// Perform request
@@ -231,9 +238,23 @@ httpResponse ProviderRestApi::executeOperation(QNetworkAccessManager::Operation 
 	return response;
 }
 
+bool ProviderRestApi::waitForResult(QNetworkReply* networkReply)
+{
+	bool networkTimeout = false;
+
+	if (!networkReply->isFinished() && networkReply->error() == QNetworkReply::NoError &&
+		!_resultLocker.try_lock_until(std::chrono::steady_clock::now() + std::chrono::milliseconds(TIMEOUT)) && !networkReply->isFinished())
+	{
+		networkTimeout = true;
+		disconnect(networkReply, &QNetworkReply::finished, nullptr, nullptr);
+		QTimer::singleShot(0, networkReply, &QNetworkReply::abort);
+	}
+
+	return networkTimeout;
+}
 
 void ProviderRestApi::aquireResultLock()
-{	
+{
 	_resultLocker.tryLock();
 }
 
@@ -248,7 +269,7 @@ httpResponse ProviderRestApi::getResponse(QNetworkReply* const& reply, bool time
 
 	int httpStatusCode = (timeout) ? 408 : reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
 	response.setHttpStatusCode(httpStatusCode);
-	
+
 	QMap<QString, QString> headers;
 	// We sometimes need headers in the response to get the hue application id for instance
 	for (const auto &item: reply->rawHeaderPairs())
@@ -256,7 +277,7 @@ httpResponse ProviderRestApi::getResponse(QNetworkReply* const& reply, bool time
 		headers[item.first] = item.second;
 	};
 	response.setHeaders(headers);
-	
+
 	if (timeout)
 		response.setNetworkReplyError(QNetworkReply::TimeoutError);
 	else
@@ -348,7 +369,7 @@ networkHelper::networkHelper()
 }
 
 networkHelper::~networkHelper()
-{	
+{
 	// get current thread
 	QThread* oldThread = _networkManager->thread();
 	disconnect(oldThread, nullptr, nullptr, nullptr);

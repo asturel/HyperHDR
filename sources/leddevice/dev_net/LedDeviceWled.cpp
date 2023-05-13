@@ -35,6 +35,7 @@ LedDeviceWled::LedDeviceWled(const QJsonObject& deviceConfig)
 	, _overrideBrightness(true)
 	, _brightnessLevel(255)
 	, _restoreConfig(false)
+	, _isStayOnAfterStreaming(false)
 {
 }
 
@@ -50,7 +51,7 @@ LedDevice* LedDeviceWled::construct(const QJsonObject& deviceConfig)
 }
 
 bool LedDeviceWled::init(const QJsonObject& deviceConfig)
-{	
+{
 	bool isInitOK = false;
 
 	Debug(_log, "Initializing WLED");
@@ -67,12 +68,15 @@ bool LedDeviceWled::init(const QJsonObject& deviceConfig)
 
 		_overrideBrightness = deviceConfig["brightnessMax"].toBool(true);
 		Debug(_log, "Override brightness : %s", (_overrideBrightness) ? "true" : "false");
-		
+
 		_brightnessLevel = deviceConfig["brightnessMaxLevel"].toInt(255);
 		Debug(_log, "Set brightness level: %i", _brightnessLevel);
 
 		_restoreConfig = deviceConfig["restoreOriginalState"].toBool(false);
 		Debug(_log, "Restore WLED   : %s", (_restoreConfig) ? "true" : "false");
+
+		_isStayOnAfterStreaming = _devConfig["stayOnAfterStreaming"].toBool(false);
+		Debug(_log, "Stay on after streaming: %s", (_isStayOnAfterStreaming) ? "true" : "false");
 
 		_maxRetry = deviceConfig["maxRetry"].toInt(60);
 		Debug(_log, "Max retry      : %d", _maxRetry);
@@ -132,17 +136,23 @@ bool LedDeviceWled::initRestAPI(const QString& hostname, int port)
 	return isInitOK;
 }
 
-QString LedDeviceWled::getOnOffRequest(bool isOn) const
+QJsonObject LedDeviceWled::getOnOffRequest(bool isOn) const
 {
 	if (!isOn && _restoreConfig && !_configBackup.isEmpty())
 	{
-		return QString(_configBackup.toJson(QJsonDocument::Compact));
+		return _configBackup.object();
 	}
 	else
 	{
-		QString state = isOn ? STATE_VALUE_TRUE : STATE_VALUE_FALSE;
-		QString bri = (_overrideBrightness && isOn) ? QString(",\"bri\":%1").arg(_brightnessLevel) : "";
-		return QString("{\"on\":%1,\"live\":%1%2}").arg(state).arg(bri);
+		QJsonObject cmd;
+
+		cmd.insert("live", isOn);
+		cmd.insert("tt", 0);
+		cmd.insert("on", isOn || _isStayOnAfterStreaming);
+		if (_overrideBrightness && isOn) {
+			cmd.insert("bri", _brightnessLevel);
+		}
+		return cmd;
 	}
 }
 
@@ -175,9 +185,9 @@ bool LedDeviceWled::powerOn()
 
 		if (response.error())
 		{
-			this->setInError(response.getErrorReason());			
+			this->setInError(response.getErrorReason());
 
-			// power on simultaneously with Rpi causes timeout			
+			// power on simultaneously with Rpi causes timeout
 			if (_maxRetry > 0 && response.error())
 			{
 				if (_currentRetry <= 0)
@@ -233,7 +243,7 @@ QJsonObject LedDeviceWled::discover(const QJsonObject& /*params*/)
 	QJsonObject devicesDiscovered;
 	QJsonArray deviceList;
 	devicesDiscovered.insert("ledDeviceType", _activeDeviceType);
-	
+
 #ifdef ENABLE_BONJOUR
 	auto bonInstance = DiscoveryWrapper::getInstance();
 	if (bonInstance != nullptr)
@@ -252,7 +262,7 @@ QJsonObject LedDeviceWled::discover(const QJsonObject& /*params*/)
 	}
 #else
 	Error(_log, "The Network Discovery Service was mysteriously disabled while the maintenair was compiling this version of HyperHDR");
-#endif	
+#endif
 
 	devicesDiscovered.insert("devices", deviceList);
 	Debug(_log, "devicesDiscovered: [%s]", QString(QJsonDocument(devicesDiscovered).toJson(QJsonDocument::Compact)).toUtf8().constData());

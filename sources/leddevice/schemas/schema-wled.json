@@ -13,12 +13,12 @@
 			"format": "checkbox",
 			"default" : true,
 			"propertyOrder" : 2
-		},		
+		},
 		"brightnessMaxLevel":
 		{
 			"type" : "integer",
-			"format" : "stepper",			
-			"step"   : 1,			
+			"format" : "stepper",
+			"step"   : 1,
 			"title" : "wledCustomBrightnessLevel",
 			"minimum" : 1,
 			"maximum" : 255,
@@ -38,17 +38,28 @@
 			"default" : false,
 			"propertyOrder" : 4
 		},
+		"stayOnAfterStreaming": {
+			"type": "boolean",
+			"format": "checkbox",
+			"title": "edt_dev_spec_stayOnAfterStreaming_title",
+			"default": false,
+			"required": true,
+			"options": {
+			  "infoText": "edt_dev_spec_stayOnAfterStreaming_title_info"
+			},
+			"propertyOrder": 5
+		},
 		"maxRetry":
 		{
 			"type" : "integer",
-			"format" : "stepper",			
-			"step"   : 1,			
+			"format" : "stepper",
+			"step"   : 1,
 			"title" : "edt_dev_max_retry",
 			"minimum" : 0,
 			"maximum" : 300,
 			"default" : 60,
 			"required" : true,
-			"propertyOrder" : 5
+			"propertyOrder" : 6
 		}
 	},
 	"additionalProperties": true
