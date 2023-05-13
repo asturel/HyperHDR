@@ -99,6 +99,8 @@ public:
 
 	httpResponse put(const QString& body = "");
 
+	httpResponse put(const QJsonObject &body);
+
 	httpResponse post(const QString& body);
 
 	httpResponse get(const QUrl& url);
