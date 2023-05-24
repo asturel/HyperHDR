@@ -880,7 +880,9 @@ $(document).ready(function()
 			var yeelight_title = 'wiz_yeelight_title';
 			changeWizard(data, yeelight_title, startWizardYeelight);
 		}		
-		else if (["apa102", "apa104", "awa_spi", "lpd6803", "lpd8806", "p9813", "sk6812spi", "sk6822spi", "sk9822", "ws2801", "ws2812spi", "wled", "adalight", "atmo", "dmx", "karate", "sedu", "tpm2"].includes(ledType))
+		else if (["apa102", "apa104", "awa_spi", "lpd6803", "lpd8806", "p9813", "sk6812spi", 
+				"sk6822spi", "sk9822", "ws2801", "ws2812spi", "wled", "adalight", "atmo", "dmx", 
+				"karate", "sedu", "tpm2"].includes(ledType) || ledType.endsWith("_ftdi"))
 		{					
 			let selectorControl = $("<select id=\"deviceListInstances\" />");
 			let targetControl = 'output';
@@ -892,7 +894,7 @@ $(document).ready(function()
 				requestLedDeviceDiscovery(ledType).then( (result) => deviceListRefresh(ledType, result, 'root.specificOptions.host','select_wled_intro','select_wled_rescan'));
 				targetControl = 'host';
 			}
-			else if (["adalight", "atmo", "dmx", "karate", "sedu", "tpm2"].includes(ledType))
+			else if (["adalight", "atmo", "dmx", "karate", "sedu", "tpm2"].includes(ledType) || ledType.endsWith("_ftdi"))
 				requestLedDeviceDiscovery(ledType).then( (result) => deviceListRefresh(ledType, result, 'root.specificOptions.output','edt_dev_spec_outputPath_title'));
 			else
 				requestLedDeviceDiscovery(ledType).then( (result) => deviceListRefresh(ledType, result, 'root.specificOptions.output', 'edt_dev_spec_spipath_title'));
@@ -924,7 +926,6 @@ $(document).ready(function()
 
 	var devNET = ['atmoorb', 'cololight', 'fadecandy', 'philipshue', 'nanoleaf', 'tinkerforge', 'tpm2net', 'udpe131', 'udpartnet', 'udph801', 'udpraw', 'wled', 'yeelight'];
 	var devUSB = ['adalight', 'dmx', 'atmo', 'lightpack', 'paintpack', 'rawhid', 'sedu', 'tpm2', 'karate'];
-
 	var optArr = [
 		[]
 	];
@@ -933,9 +934,12 @@ $(document).ready(function()
 	optArr[3] = [];
 	optArr[4] = [];
 	optArr[5] = [];
+	optArr[6] = [];
 
 	for (var idx = 0; idx < ledDevices.length; idx++)
 	{
+		var isFtdi = ledDevices[idx].endsWith("_ftdi");
+
 		if ($.inArray(ledDevices[idx], devRPiSPI) != -1)
 			optArr[0].push(ledDevices[idx]);
 		else if ($.inArray(ledDevices[idx], devRPiPWM) != -1)
@@ -946,8 +950,10 @@ $(document).ready(function()
 			optArr[3].push(ledDevices[idx]);
 		else if ($.inArray(ledDevices[idx], devUSB) != -1)
 			optArr[4].push(ledDevices[idx]);
-		else
+		else if (isFtdi)
 			optArr[5].push(ledDevices[idx]);
+		else
+			optArr[6].push(ledDevices[idx]);
 	}
 
 	$("#leddevices").append(createSel(optArr[0], $.i18n('conf_leds_optgroup_RPiSPI')));
@@ -955,7 +961,8 @@ $(document).ready(function()
 	$("#leddevices").append(createSel(optArr[2], $.i18n('conf_leds_optgroup_RPiGPIO')));
 	$("#leddevices").append(createSel(optArr[3], $.i18n('conf_leds_optgroup_network')));
 	$("#leddevices").append(createSel(optArr[4], $.i18n('conf_leds_optgroup_usb')));
-	$("#leddevices").append(createSel(optArr[5], $.i18n('conf_leds_optgroup_debug')));
+	$("#leddevices").append(createSel(optArr[5], $.i18n('conf_leds_optgroup_ftdi')));
+	$("#leddevices").append(createSel(optArr[6], $.i18n('conf_leds_optgroup_debug')));
 	$("#leddevices").val(window.serverConfig.device.type);
 	
 

@@ -38,6 +38,7 @@ SET ( DEFAULT_BONJOUR                     ON  )
 SET ( DEFAULT_MQTT                        ON  )
 SET ( DEFAULT_STATIC_QT_PLUGINS           OFF )
 SET ( DEFAULT_PRECOMPILED_HEADERS         ON  )
+SET ( DEFAULT_FTDIDEV                     ON  )
 SET ( DEFAULT_XZ                          ON  )
 
 # Configure CCache if available
@@ -57,9 +58,9 @@ endif(CCACHE_FOUND)
 # find QT libs
 find_package(Qt6 COMPONENTS Core Gui Network Sql Widgets SerialPort QUIET)
 
-if (Qt6Core_FOUND AND NOT (DO_NOT_USE_QT_VERSION_6_LIBS STREQUAL "ON"))	
+if (Qt6Core_FOUND AND NOT (DO_NOT_USE_QT_VERSION_6_LIBS STREQUAL "ON"))
 	message( STATUS "Found Qt Version: ${Qt6Core_VERSION}" )
-	SET( Qt_VERSION 6 )	
+	SET( Qt_VERSION 6 )
 ELSE()
 	if (DO_NOT_USE_QT_VERSION_6_LIBS STREQUAL "ON")
 		message( STATUS "Search for QT version 6 is disabled: QT5 is preferred. Enable QT6 by setting DO_NOT_USE_QT_VERSION_6_LIBS to OFF." )
@@ -72,10 +73,10 @@ ELSE()
 	IF ( "${Qt5Core_VERSION}" VERSION_LESS "${QT_MIN_VERSION}" )
 		message( FATAL_ERROR "Your Qt version is to old! Minimum required ${QT_MIN_VERSION}" )
 	ENDIF()
-	SET( Qt_VERSION 5 )	
+	SET( Qt_VERSION 5 )
 ENDIF()
 
-IF ( ${CMAKE_SYSTEM} MATCHES "Linux" )	
+IF ( ${CMAKE_SYSTEM} MATCHES "Linux" )
 	SET ( DEFAULT_SOUNDCAPLINUX ON )
 	SET ( DEFAULT_V4L2          ON )
 	SET ( DEFAULT_X11           ON )
@@ -100,14 +101,14 @@ if ( NOT DEFINED PLATFORM )
 		SET( PLATFORM "linux")
 	elseif ( "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "arm" OR "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "aarch64")
 		SET( PLATFORM "rpi")
-		
+
 
 		FILE( READ /proc/cpuinfo SYSTEM_CPUINFO )
 		STRING ( TOLOWER "${SYSTEM_CPUINFO}" SYSTEM_CPUINFO )
 		if ( "${SYSTEM_CPUINFO}" MATCHES "amlogic" AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4 )
 			SET( PLATFORM "amlogic" )
 		elseif ( ("${SYSTEM_CPUINFO}" MATCHES "amlogic" OR "${SYSTEM_CPUINFO}" MATCHES "odroid-c2" OR "${SYSTEM_CPUINFO}" MATCHES "vero4k") AND ${CMAKE_SIZEOF_VOID_P} EQUAL 8 )
-			SET( PLATFORM "amlogic64" )		
+			SET( PLATFORM "amlogic64" )
 		endif()
 	endif()
 	if ( PLATFORM )
@@ -134,34 +135,34 @@ ENDMACRO()
 
 if ( "${PLATFORM}" MATCHES "osx" )
 	SET ( DEFAULT_SOUNDCAPMACOS ON )
-	
+
 	include_directories("/opt/X11/include/")
-	
-	if(APPLE AND EXISTS /usr/local/opt/qt6)			
+
+	if(APPLE AND EXISTS /usr/local/opt/qt6)
 		INCLUDE(CheckCXXCompilerFlag)
 		CHECK_CXX_COMPILER_FLAG("-Werror=unguarded-availability" REQUIRES_UNGUARDED_AVAILABILITY)
 		IF(REQUIRES_UNGUARDED_AVAILABILITY)
 			LIST(APPEND CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS} "-Werror=unguarded-availability")
 		ENDIF()
-	
+
 		list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/qt6")
-	elseif(APPLE AND EXISTS /usr/local/opt/qt5)	
+	elseif(APPLE AND EXISTS /usr/local/opt/qt5)
 		list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/qt5")
 	endif()
-	
+
 	SET ( DEFAULT_AVF                 ON  )
 	SET ( DEFAULT_MAC_SYSTEM          ON  )
 	SET ( DEFAULT_PRECOMPILED_HEADERS OFF )
-elseif ( "${PLATFORM}" MATCHES "rpi" )	
+elseif ( "${PLATFORM}" MATCHES "rpi" )
 	SET ( DEFAULT_WS281XPWM  ON )
 	SET ( DEFAULT_CEC        ON )
-	
+
 	# GL dispatcher
 	find_library (GLD GLdispatch)
 	if(NOT GLD)
 		message(FATAL_ERROR "GLdispatch library not found. Install libglvnd-dev")
 	endif()
-		
+
 
 	message("Found: ${GLD}")
 	add_library(GLD SHARED IMPORTED)
@@ -172,10 +173,10 @@ elseif ( "${PLATFORM}" MATCHES "rpi" )
 		else()
 			file(STRINGS "/proc/device-tree/model" ARM_MODEL NEWLINE_CONSUME)
 		endif()
-		
+
 		STRING ( TOLOWER "${ARM_MODEL}" ARM_MODEL)
 		message(STATUS "Arm model info: ${ARM_MODEL}")
-	
+
 		string(FIND "${ARM_MODEL}" "raspberry" IS_RASPBERRY)
 		message(STATUS "Check if Raspberry Pi (0-yes): ${IS_RASPBERRY}")
 	else()
@@ -188,7 +189,7 @@ elseif ( "${PLATFORM}" MATCHES "rpi" )
 	else()
 		message(STATUS "Default compiler settings for Raspberry Pi.")
 	endif()
-	
+
 elseif ( "${PLATFORM}" STREQUAL "amlogic" )
 	SET ( DEFAULT_AMLOGIC    ON )
 elseif ( "${PLATFORM}" STREQUAL "amlogic64" )
@@ -199,7 +200,7 @@ elseif ( "${PLATFORM}" MATCHES "linux" )
 		SET ( DEFAULT_WS281XPWM  ON )
 	endif()
 elseif ( "${PLATFORM}" STREQUAL "imx6" )
-	
+
 elseif (WIN32)
 
 endif()
@@ -212,7 +213,7 @@ ADD_DEFINITIONS( ${PLATFORM_DEFINE} )
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # validatte the discovery services
-if (DEFAULT_BONJOUR)	
+if (DEFAULT_BONJOUR)
 	set (MJANSSON_MDNS_VERSION "1.4.2")
 	file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/dependencies/bonjour)
 	file(DOWNLOAD "https://raw.githubusercontent.com/mjansson/mdns/${MJANSSON_MDNS_VERSION}/mdns.h"
@@ -221,13 +222,13 @@ if (DEFAULT_BONJOUR)
 	list(GET MJANSSON_MDNS_STATUS_H 0 MJANSSON_MDNS_STATUS_H_CODE)
 	if (MJANSSON_MDNS_STATUS_H_CODE AND NOT MJANSSON_MDNS_STATUS_H_CODE EQUAL 0)
 		message( FATAL_ERROR "Could not download the MJANSSON_MDNS library.")
-	endif()		
+	endif()
 endif()
 
 if (DEFAULT_X11)
 	if (NOT CMAKE_CROSSCOMPILING)
 		find_package(XLibs QUIET )
-	endif()	
+	endif()
 	if (NOT XLibs_FOUND)
 		message( WARNING "X11 libs not found. Disabling support for X11.")
 		SET ( DEFAULT_X11                          OFF )
@@ -253,7 +254,7 @@ if (DEFAULT_PIPEWIRE)
 		message( WARNING "QT dbus library is required for PipeWire/Portal support" )
 		SET ( DEFAULT_PIPEWIRE                    OFF )
 	else()
-	
+
 		pkg_check_modules(PIPEWIRE libpipewire-0.3)
 		if(NOT PIPEWIRE_FOUND OR NOT PIPEWIRE_INCLUDE_DIRS OR NOT PIPEWIRE_LIBRARIES)
 			message( WARNING "Pipewire >= 3.0 not found (did you install libpipewire-0.3-dev?). Disabling support for PipeWire software grabber.")
@@ -326,6 +327,9 @@ colorMe("ENABLE_SPIDEV = " ${ENABLE_SPIDEV})
 
 option(ENABLE_WS281XPWM "Enable the WS281x-PWM device" ${DEFAULT_WS281XPWM} )
 colorMe("ENABLE_WS281XPWM = " ${ENABLE_WS281XPWM})
+
+option(ENABLE_FTDIDEV "Enable the FTDI device" ${DEFAULT_FTDIDEV})
+colorMe("ENABLE_FTDIDEV = " ${ENABLE_FTDIDEV})
 
 message( STATUS "\n${CyanColor}SOFTWARE GRABBERS${ColorReset}")
 
@@ -485,7 +489,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 	find_package(WindowsSDK REQUIRED)
 	message(STATUS "WINDOWS SDK: ${WINDOWSSDK_LATEST_DIR} ${WINDOWSSDK_LATEST_NAME}")
 	message(STATUS "MSVC VERSION: ${MSVC_VERSION}")
-	
+
 	FIRSTSUBDIR(SUBDIRQT "C:/Qt")
 	SET(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "${SUBDIRQT}/msvc2019_64")
 	if ((Qt5Core_FOUND AND NOT (DEFINED ENV{Qt5_DIR})) OR (Qt6Core_FOUND AND NOT (DEFINED ENV{Qt6_DIR})))
@@ -499,53 +503,93 @@ endif()
 
 add_definitions(${QT_DEFINITIONS})
 
-# libjpegturbo
-if ( ENABLE_V4L2 OR ENABLE_MF )
-	if(WIN32)
-		if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/jpeg-windows)
-			file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/jpeg-windows)
+# libjpegturbo and ftdi libraries
+
+if( WIN32 AND (ENABLE_MF OR ENABLE_FTDIDEV))
+	if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows)
+		file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows)
+	endif()
+
+	if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libs4windows.zip OR
+		NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libjpeg-turbo_x64-windows OR
+		NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libftdi1_x64-windows)
+		message( STATUS "Downloading libjpegturbo and ftdi libraries")
+		file(DOWNLOAD https://github.com/awawa-dev/HyperHDR.libs.provider/releases/download/2023.04.10/libs4windows.zip
+					  ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libs4windows.zip
+					  STATUS WIN_LIBS_DOWNLOAD_STATUS
+					  EXPECTED_HASH MD5=46d91068c9a97d79f74e899dbbeb027b)
+		list(GET WIN_LIBS_DOWNLOAD_STATUS 0 WIN_LIBS_DOWNLOAD_STATUS_CODE)
+		if(WIN_LIBS_DOWNLOAD_STATUS_CODE AND NOT WIN_LIBS_DOWNLOAD_STATUS_CODE EQUAL 0)
+			file( REMOVE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libs4windows.zip )
+			message( FATAL_ERROR "Could not download libjpegturbo and ftdi libraries")
 		endif()
-		if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/jpeg-windows/windows.zip OR
-			NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/jpeg-windows/lib)
-			message( STATUS "Downloading libjpegturbo library")
-			file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/jpeg-windows)
-			file(DOWNLOAD https://github.com/awawa-dev/libjpeg-turbo/releases/download/2.1.3/windows.zip
-						  ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/jpeg-windows/windows.zip
-						  STATUS JPEG_DOWNLOAD_STATUS
-						  EXPECTED_HASH MD5=2CF284387AC832270736893C4EE05852)
-			list(GET JPEG_DOWNLOAD_STATUS 0 JPEG_DOWNLOAD_STATUS_CODE)
-			if(JPEG_DOWNLOAD_STATUS_CODE AND NOT JPEG_DOWNLOAD_STATUS_CODE EQUAL 0)
-				message( FATAL_ERROR "Could not download libjpegturbo library")
-			endif()
-		endif()
-		execute_process(
-			COMMAND ${SEVENZIP_BIN} x ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/jpeg-windows/windows.zip -o${CMAKE_CURRENT_SOURCE_DIR}/dependencies/jpeg-windows/ -aoa -y
-			RESULT_VARIABLE STATUS_EXTRACT
-			OUTPUT_VARIABLE OUTPUT1
-		)
-		if(STATUS_EXTRACT AND NOT STATUS_EXTRACT EQUAL 0)
-		    message( FATAL_ERROR "Could not extract libjpegturbo library")
-		else()
-		    message( STATUS "libjpegturbo library extracted")			
-		endif()
-		set (TURBOJPEG_FOUND 1)
-		
-		set (TURBOJPEG_LIBRARY_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/jpeg-windows/bin")
-		set (TURBOJPEG_LINK_LIBRARIES "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/jpeg-windows/lib/turbojpeg.lib")
-		set (TURBOJPEG_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/jpeg-windows/include")
+	endif()
+
+	execute_process(
+		COMMAND ${SEVENZIP_BIN} x ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libs4windows.zip -o${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/ -aoa -y
+		RESULT_VARIABLE STATUS_EXTRACT
+		OUTPUT_VARIABLE OUTPUT1
+	)
+
+	if(STATUS_EXTRACT AND NOT STATUS_EXTRACT EQUAL 0)
+		message( FATAL_ERROR "Could not extract libjpegturbo and ftdi Windows libraries")
 	else()
-		FIND_PACKAGE(PkgConfig REQUIRED)
-		pkg_check_modules(TURBOJPEG REQUIRED libturbojpeg>=2.0)
-	endif ()
-	
-	message( STATUS "TURBOJPEG_LIBRARY_DIRS=${TURBOJPEG_LIBRARY_DIRS}")
-	message( STATUS "TURBOJPEG_LINK_LIBRARIES=${TURBOJPEG_LINK_LIBRARIES}")
-	message( STATUS "TURBOJPEG_INCLUDE_DIRS=${TURBOJPEG_INCLUDE_DIRS}")
+		message( STATUS "Package of libjpegturbo and ftdi libraries extracted")
+	endif()
+
+	set (TURBOJPEG_FOUND 1)
+	set (TURBOJPEG_LIBRARY_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libjpeg-turbo_x64-windows/bin")
+	set (TURBOJPEG_LINK_LIBRARIES "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libjpeg-turbo_x64-windows/lib/turbojpeg.lib")
+	set (TURBOJPEG_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libjpeg-turbo_x64-windows/include")
+
+	set (LIB_FTDI_FOUND 1)
+	set (LIB_FTDI_LIBRARY_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libftdi1_x64-windows/bin")
+	set (LIB_FTDI_LINK_LIBRARIES "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libftdi1_x64-windows/lib/ftdi1.lib")
+	set (LIB_FTDI_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libftdi1_x64-windows/include/libftdi1")
+
+	set (LIB_USB_FOUND 1)
+	set (LIB_USB_LIBRARY_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libusb_x64-windows/bin")
+	set (LIB_USB_LINK_LIBRARIES "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libusb_x64-windows/lib/libusb-1.0.lib")
+	set (LIB_USB_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libusb_x64-windows/include/libusb-1.0")
+
+	set (LIB_CONFUSE_LIBRARY_FOUND 1)
+	set (LIB_CONFUSE_LIBRARY_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/windows/libconfuse_x64-windows/bin")
+endif()
+
+if ( NOT WIN32 AND ENABLE_FTDIDEV )
+	FIND_PACKAGE(PkgConfig REQUIRED)
+	pkg_check_modules(LIB_FTDI REQUIRED libftdi1)
+	pkg_check_modules(LIB_USB REQUIRED libusb-1.0)
+endif()
+
+if ( ENABLE_V4L2 )
+	FIND_PACKAGE(PkgConfig REQUIRED)
+	pkg_check_modules(TURBOJPEG REQUIRED libturbojpeg>=2.0)
+endif()
+
+if( ENABLE_FTDIDEV )
+	if ( LIB_CONFUSE_LIBRARY_FOUND )
+		message( STATUS "LIB_CONFUSE_LIBRARY_DIRS=${LIB_CONFUSE_LIBRARY_DIRS}" )
+	endif()
+
+	message( STATUS "LIB_USB_LIBRARY_DIRS=${LIB_USB_LIBRARY_DIRS}" )
+	message( STATUS "LIB_USB_LINK_LIBRARIES=${LIB_USB_LINK_LIBRARIES}" )
+	message( STATUS "LIB_USB_INCLUDE_DIRS=${LIB_USB_INCLUDE_DIRS}" )
+
+	message( STATUS "LIB_FTDI_LIBRARY_DIRS=${LIB_FTDI_LIBRARY_DIRS}" )
+	message( STATUS "LIB_FTDI_LINK_LIBRARIES=${LIB_FTDI_LINK_LIBRARIES}" )
+	message( STATUS "LIB_FTDI_INCLUDE_DIRS=${LIB_FTDI_INCLUDE_DIRS}" )
+endif()
+
+if( ENABLE_MF OR ENABLE_V4L2 )
+	message( STATUS "TURBOJPEG_LIBRARY_DIRS=${TURBOJPEG_LIBRARY_DIRS}" )
+	message( STATUS "TURBOJPEG_LINK_LIBRARIES=${TURBOJPEG_LINK_LIBRARIES}" )
+	message( STATUS "TURBOJPEG_INCLUDE_DIRS=${TURBOJPEG_INCLUDE_DIRS}" )
 endif()
 
 # Embedded QT plugins
 if (USE_STATIC_QT_PLUGINS)
-	foreach(guiPlugin ${Qt${Qt_VERSION}Gui_PLUGINS} Qt${Qt_VERSION}::Gui)		
+	foreach(guiPlugin ${Qt${Qt_VERSION}Gui_PLUGINS} Qt${Qt_VERSION}::Gui)
 		get_target_property(file ${guiPlugin} LOCATION)
 		if (NOT IS_SYMLINK ${file})
 			message("Using static QT plugin: " ${file})
@@ -559,7 +603,7 @@ if (USE_STATIC_QT_PLUGINS)
 			message("Using static QT plugin: " ${file})
 			set(STATIC_QT_PLUGINS_LIBS ${STATIC_QT_PLUGINS_LIBS} ${file})
 		endif()
-	endforeach()	
+	endforeach()
 endif()
 
 # Add the source/lib directories
@@ -585,12 +629,12 @@ include (${CMAKE_CURRENT_SOURCE_DIR}/cmake/packages.cmake)
 
 # external targets
 if (WIN32 AND TARGET precompiled_hyperhdr_headers AND TARGET apidoc AND TARGET flatbuffers AND TARGET flatc AND TARGET mbedcrypto AND TARGET qmqtt AND TARGET liblzma)
-	set_target_properties(precompiled_hyperhdr_headers qmqtt apidoc flatbuffers flatc flathash lib mbedcrypto mbedtls mbedx509 resources uninstall liblzma PROPERTIES FOLDER ExternalLibsTargets)	
+	set_target_properties(precompiled_hyperhdr_headers qmqtt apidoc flatbuffers flatc flathash lib mbedcrypto mbedtls mbedx509 resources uninstall liblzma PROPERTIES FOLDER ExternalLibsTargets)
 else()
 	set_target_properties(resources uninstall PROPERTIES FOLDER ExternalLibsTargets)
 endif()
 
-if (NOT ENABLE_BONJOUR)	
+if (NOT ENABLE_BONJOUR)
 	message( FATAL_ERROR "The network discovery service (ENABLE_BONJOUR) is an important feature of HyperHDR. If you know what you are doing, remove this safe-break.")
 endif()
 
