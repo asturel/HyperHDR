@@ -238,21 +238,6 @@ httpResponse ProviderRestApi::executeOperation(QNetworkAccessManager::Operation 
 	return response;
 }
 
-bool ProviderRestApi::waitForResult(QNetworkReply* networkReply)
-{
-	bool networkTimeout = false;
-
-	if (!networkReply->isFinished() && networkReply->error() == QNetworkReply::NoError &&
-		!_resultLocker.try_lock_until(std::chrono::steady_clock::now() + std::chrono::milliseconds(TIMEOUT)) && !networkReply->isFinished())
-	{
-		networkTimeout = true;
-		disconnect(networkReply, &QNetworkReply::finished, nullptr, nullptr);
-		QTimer::singleShot(0, networkReply, &QNetworkReply::abort);
-	}
-
-	return networkTimeout;
-}
-
 void ProviderRestApi::aquireResultLock()
 {
 	_resultLocker.tryLock();

@@ -11,6 +11,8 @@
 #include <utils/settings.h>
 #include <qmqtt.h>
 
+#include <api/JsonAPI.h>
+
 class mqtt : public QObject
 {
 	Q_OBJECT
@@ -30,6 +32,7 @@ private slots:
 	void connected();
 	void error(const QMQTT::ClientError error);
 	void received(const QMQTT::Message& message);
+	void handleCallback(QJsonObject obj);
 
 signals:
 	void jsonCommander(QString command);
@@ -39,5 +42,6 @@ private:
 	/// Logger instance
 	int			_jsonPort;
 	Logger*		_log;
+	JsonAPI*    _jsonAPI;
 	QMQTT::Client*	_clientInstance;
 };
