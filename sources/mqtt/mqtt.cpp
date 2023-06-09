@@ -15,12 +15,9 @@ mqtt::mqtt(QObject* _parent)
 	: QObject(_parent)
 	, _jsonPort(8090)
 	, _log(Logger::getInstance("MQTT"))
+	, _jsonAPI(nullptr)
 	, _clientInstance(nullptr)
 {
-	const QString client = QString("MQTT");
-	_jsonAPI = new JsonAPI(client, _log, true, this, true);
-	connect(_jsonAPI, &JsonAPI::callbackMessage, this, &mqtt::handleCallback);
-	_jsonAPI->initialize();
 }
 
 mqtt::~mqtt()
@@ -86,6 +83,13 @@ void mqtt::start(QString host, int port, QString username, QString password, boo
 	QObject::connect(_clientInstance, &QMQTT::Client::connected, this, &mqtt::connected);
 	QObject::connect(_clientInstance, &QMQTT::Client::received, this, &mqtt::received);
 	_clientInstance->connectToHost();
+
+	if (_jsonAPI == nullptr) {
+		const QString client = QString("MQTT");
+		_jsonAPI = new JsonAPI(client, _log, true, this, false);
+		connect(_jsonAPI, &JsonAPI::callbackMessage, this, &mqtt::handleCallback);
+		_jsonAPI->initialize();
+	}
 }
 
 void mqtt::stop()
