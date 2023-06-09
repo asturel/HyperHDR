@@ -17,12 +17,27 @@ mqtt::mqtt(QObject* _parent)
 	, _log(Logger::getInstance("MQTT"))
 	, _clientInstance(nullptr)
 {
+	const QString client = QString("MQTT");
+	_jsonAPI = new JsonAPI(client, _log, true, this, true);
+	connect(_jsonAPI, &JsonAPI::callbackMessage, this, &mqtt::handleCallback);
+	_jsonAPI->initialize();
 }
 
 mqtt::~mqtt()
 {
 	stop();
 }
+
+void mqtt::handleCallback(QJsonObject obj)
+{
+	QMQTT::Message report;
+	report.setTopic(HYPERHDRAPI_RESPONSE);
+	report.setQos(2);
+	QJsonDocument doc(obj);
+	report.setPayload(doc.toJson());
+	_clientInstance->publish(report);
+}
+
 
 void mqtt::start(QString host, int port, QString username, QString password, bool is_ssl, bool ignore_ssl_errors)
 {
@@ -34,11 +49,11 @@ void mqtt::start(QString host, int port, QString username, QString password, boo
 				QSTRING_CSTR(host), port, (is_ssl) ? "SSL": "NO SSL", (!username.isEmpty() || !password.isEmpty()) ? "YES" : "NO", (ignore_ssl_errors) ? "YES" : "NO");
 
 	QHostAddress adr(host);
-	
-	
+
+
 	if (is_ssl)
 	{
-		QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();	
+		QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
 		_clientInstance = new QMQTT::Client(host, port, sslConfig);
 	 }
 	else
@@ -54,7 +69,7 @@ void mqtt::start(QString host, int port, QString username, QString password, boo
 
 	if (!password.isEmpty())
 		_clientInstance->setPassword(password.toLocal8Bit());
-		
+
 	if (is_ssl && ignore_ssl_errors)
 	{
 		QObject::connect(_clientInstance, &QMQTT::Client::sslErrors, [&](const QList<QSslError>& errors) {
@@ -65,12 +80,12 @@ void mqtt::start(QString host, int port, QString username, QString password, boo
 	QObject::connect(_clientInstance, &QMQTT::Client::connected, this, &mqtt::connected);
 	QObject::connect(_clientInstance, &QMQTT::Client::received, this, &mqtt::received);
 	_clientInstance->connectToHost();
-}	
+}
 
 void mqtt::stop()
 {
 	if (_clientInstance != nullptr)
-	{		
+	{
 		delete _clientInstance;
 		_clientInstance = nullptr;
 	}
@@ -160,29 +175,7 @@ void mqtt::received(const QMQTT::Message& message)
 
 	if (QString::compare(HYPERHDRAPI, topic) == 0 && payload.length() > 0)
 	{
-		QString address = QString("http://localhost:%1/json-rpc").arg(_jsonPort);
-		QNetworkAccessManager* manager = new QNetworkAccessManager(this);
-
-		QObject::connect(manager, &QNetworkAccessManager::finished, [manager, this](QNetworkReply* reply) {
-			if (_clientInstance != nullptr && reply != nullptr)
-			{
-				QByteArray bytes = reply->readAll();
-				QMQTT::Message report;
-
-				report.setTopic(HYPERHDRAPI_RESPONSE);
-				report.setQos(2);
-				if (reply->error() == QNetworkReply::NoError && bytes.length() > 0)
-					report.setPayload(bytes);
-				else
-					report.setPayload("{\n\t\"success\" : false\n}");
-
-				_clientInstance->publish(report);
-			}
-
-			reply->deleteLater();
-			manager->deleteLater();
-		});
-
-		manager->post(QNetworkRequest(QUrl(address)), message.payload());		
+		QByteArray header = QByteArray();
+		_jsonAPI->handleMessage(payload, header);
 	}
 }
