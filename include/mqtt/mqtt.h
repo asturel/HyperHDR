@@ -44,4 +44,7 @@ private:
 	Logger*		_log;
 	JsonAPI*    _jsonAPI;
 	QMQTT::Client*	_clientInstance;
+
+	void sendPayload(QJsonObject payload);
+	void sendHelloOrByePayload(bool connected);
 };
