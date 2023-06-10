@@ -7,6 +7,7 @@
 #include <QNetworkReply>
 #include <QUrl>
 #include <QHostInfo>
+#include <utils/WaitTime.h>
 
 QString HYPERHDRAPI = QStringLiteral("HyperHDR/JsonAPI");
 QString HYPERHDRAPI_RESPONSE = QStringLiteral("HyperHDR/JsonAPI/response");
@@ -118,15 +119,11 @@ void mqtt::start(QString host, int port, QString username, QString password, boo
 void mqtt::stop()
 {
 	Debug(_log,"Stop");
-	sendHelloOrByePayload(false);
-	QEventLoop loop;
-	QTimer t;
-	t.connect(&t, &QTimer::timeout, &loop, &QEventLoop::quit);
-	t.start(150);
-	loop.exec();
-
 	if (_clientInstance != nullptr)
 	{
+		sendHelloOrByePayload(false);
+		wait(150);
+		_clientInstance->disconnectFromHost();
 		delete _clientInstance;
 		_clientInstance = nullptr;
 	}
