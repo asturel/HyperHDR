@@ -106,6 +106,8 @@ LutCalibrator* LutCalibrator::getInstance()
 
 void LutCalibrator::assignHandler(hyperhdr::Components defaultComp, int checksum, ColorRgb startColor, ColorRgb endColor, bool limitedRange, double saturation, double luminance, double gammaR, double gammaG, double gammaB, int coef)
 {
+	Debug(_log, "assignHandler [components: %s, checksum: %d, coef: %d]", defaultComp, checksum, coef);
+
 	if (checksum == 0)
 	{
 		if (GrabberWrapper::getInstance() != nullptr && !_mjpegCalibration)
@@ -490,7 +492,7 @@ double LutCalibrator::inverse_eotf(double x) noexcept
 
 double LutCalibrator::ootf(double v) noexcept
 {
-	// https://github.com/sekrit-twc/zimg/blob/master/src/zimg/colorspace/gamma.cpp	
+	// https://github.com/sekrit-twc/zimg/blob/master/src/zimg/colorspace/gamma.cpp
 
 	constexpr double SRGB_ALPHA = 1.055010718947587;
 	constexpr double SRGB_BETA = 0.003041282560128;
@@ -1264,7 +1266,7 @@ bool LutCalibrator::finalize(bool fastTrack)
 		file.write((const char*)_lutBuffer, LUT_FILE_SIZE);
 		Debug(_log, "LUT RGB HDR table (1/3) is ready");
 
-		// YUV HDR		
+		// YUV HDR
 		uint8_t* _yuvBuffer = &(_lutBuffer[LUT_FILE_SIZE]);
 
 		memset(_yuvBuffer, 0, LUT_FILE_SIZE);
