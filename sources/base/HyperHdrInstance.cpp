@@ -45,7 +45,7 @@
 #include <base/GrabberWrapper.h>
 
 // Boblight
-#if defined(ENABLE_BOBLIGHT)	
+#if defined(ENABLE_BOBLIGHT)
 #include <boblightserver/BoblightServer.h>
 #else
 class BoblightServer {};
@@ -584,7 +584,14 @@ const HyperHdrInstance::InputInfo& HyperHdrInstance::getPriorityInfo(int priorit
 
 PriorityMuxer::InputInfo HyperHdrInstance::getCurrentPriorityInfo()
 {
+	Debug(_log, "getCurrentPriorityInfo [current prio: %d] ", getCurrentPriority());
+	//Debug(_log, "getCurrentPriorityInfo [_muxer is null: %d] ", _muxer == nullptr ? 1 : 0);
 	PriorityMuxer::InputInfo val = _muxer.getInputInfo(getCurrentPriority());
+	Debug(_log, "getCurrentPriorityInfo [val is null: %d] ", &val == nullptr ? 1 : 0);
+	//Debug(_log, "getCurrentPriorityInfo [owner: %s, prio: %d, comp: %s] ", QSTRING_CSTR(val.owner), val.priority, val.componentId);
+	Debug(_log, "getCurrentPriorityInfo [owner: %s, prio: %d, comp: %d] ", QSTRING_CSTR(val.owner), val.priority, (int)val.componentId);
+	Debug(_log, "getCurrentPriorityInfo [owner: %s, prio: %d] ", QSTRING_CSTR(val.owner), val.priority);
+	//Debug(_log, "getCurrentPriorityInfo [pio comp is null: %d] ", &val.componentId == nullptr ? 1 : 0);
 	return val;
 }
 

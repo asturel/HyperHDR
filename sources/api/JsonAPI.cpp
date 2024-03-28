@@ -315,6 +315,9 @@ hyperhdr::Components JsonAPI::getActiveComponent()
 	PriorityMuxer::InputInfo prio;
 
 	SAFE_CALL_0_RET(_hyperhdr, getCurrentPriorityInfo, PriorityMuxer::InputInfo, prio);
+	Debug(_log, "getActiveComponent [prio is null: %d] ", &prio == nullptr ? 1 : 0);
+
+	Debug(_log, "getActiveComponent [owner: %s, prio: %d, comp: %d] ", QSTRING_CSTR(prio.owner), prio.priority, (int)prio.componentId);
 
 	return prio.componentId;
 }
@@ -427,7 +430,7 @@ void JsonAPI::handleServerInfoCommand(const QJsonObject& message, const QString&
 
 			QJsonArray sessions;
 
-#ifdef ENABLE_BONJOUR					
+#ifdef ENABLE_BONJOUR
 			QList<DiscoveryRecord> services;
 			SAFE_CALL_0_RET((DiscoveryWrapper::getInstance()), getAllServices, QList<DiscoveryRecord>, services);
 
@@ -1053,8 +1056,9 @@ void JsonAPI::handleLutCalibrationCommand(const QJsonObject& message, const QStr
 	Debug(_log, "handleLutCalibrationCommand: [subcommand: %s, checksum: %d, coef: %d]",  QSTRING_CSTR(subcommand), checksum, coef);
 
 	if (subcommand == "capture") {
-		emit LutCalibrator::getInstance()->assign(getActiveComponent(), checksum, _startColor, _endColor, limitedRange, saturation, luminance, gammaR, gammaG, gammaB, coef);
-		Debug(_log, "handleLutCalibrationCommand capture: [checksum: %d, coef: %d]",  checksum, coef);
+		hyperhdr::Components activeComponent = getActiveComponent();
+		emit LutCalibrator::getInstance()->assign(activeComponent, checksum, _startColor, _endColor, limitedRange, saturation, luminance, gammaR, gammaG, gammaB, coef);
+		Debug(_log, "handleLutCalibrationCommand capture: [checksum: %d, coef: %d, comp: %d]",  checksum, coef, (int)activeComponent);
 	} else {
 		emit LutCalibrator::getInstance()->stop();
 		Debug(_log, "handleLutCalibrationCommand stop: [checksum: %d, coef: %d]",  checksum, coef);
