@@ -1050,10 +1050,15 @@ void JsonAPI::handleLutCalibrationCommand(const QJsonObject& message, const QStr
 	_endColor.green = endColor["g"].toInt(255);
 	_endColor.blue = endColor["b"].toInt(255);
 
-	if (subcommand == "capture")
+	Debug(_log, "handleLutCalibrationCommand: [subcommand: %s, checksum: %d, coef: %d]",  QSTRING_CSTR(subcommand), checksum, coef);
+
+	if (subcommand == "capture") {
 		emit LutCalibrator::getInstance()->assign(getActiveComponent(), checksum, _startColor, _endColor, limitedRange, saturation, luminance, gammaR, gammaG, gammaB, coef);
-	else
+		Debug(_log, "handleLutCalibrationCommand capture: [checksum: %d, coef: %d]",  checksum, coef);
+	} else {
 		emit LutCalibrator::getInstance()->stop();
+		Debug(_log, "handleLutCalibrationCommand stop: [checksum: %d, coef: %d]",  checksum, coef);
+	}
 
 	sendSuccessReply(command, tan);
 }
