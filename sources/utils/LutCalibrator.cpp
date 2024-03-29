@@ -62,6 +62,7 @@ LutCalibrator* LutCalibrator::instance = nullptr;
 
 LutCalibrator::LutCalibrator()
 {
+	qRegisterMetaType<ColorRgb>("ColorRgb");
 	_log = Logger::getInstance("CALIBRATOR");
 	_mjpegCalibration = false;
 	_finish = false;
