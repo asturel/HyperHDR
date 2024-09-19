@@ -1,6 +1,5 @@
 #ifndef PCH_ENABLED	
 	#include <QResource>
-	#include <QImage>
 	#include <QBuffer>
 	#include <QByteArray>
 	#include <QTimer>
@@ -20,22 +19,20 @@
 
 #include <HyperhdrConfig.h>
 #include <api/HyperAPI.h>
-#include <leddevice/LedDeviceWrapper.h>
-#include <leddevice/LedDevice.h>
-#include <leddevice/LedDeviceFactory.h>
-#include "../leddevice/dev_net/ProviderRestApi.h"
+#include <led-drivers/LedDeviceWrapper.h>
+#include <led-drivers/LedDeviceManufactory.h>
+#include <led-drivers/net/ProviderRestApi.h>
 
 #include <base/GrabberWrapper.h>
 #include <base/SystemWrapper.h>
 #include <base/SoundCapture.h>
 #include <base/ImageToLedManager.h>
 #include <base/AccessManager.h>
-#include <flatbufserver/FlatBufferServer.h>
-#include <utils/jsonschema/QJsonUtils.h>
-#include <utils/jsonschema/QJsonSchemaChecker.h>
-#include <utils/ColorSys.h>
-#include <utils/JsonUtils.h>
-#include <utils/PerformanceCounters.h>
+#include <flatbuffers/server/FlatBuffersServer.h>
+#include <json-utils/jsonschema/QJsonUtils.h>
+#include <json-utils/jsonschema/QJsonSchemaChecker.h>
+#include <json-utils/JsonUtils.h>
+#include <performance-counters/PerformanceCounters.h>
 
 // bonjour wrapper
 #ifdef ENABLE_BONJOUR
@@ -266,7 +263,7 @@ void HyperAPI::handleImageCommand(const QJsonObject& message, const QString& com
 	idata.scale = message["scale"].toInt(-1);
 	idata.format = message["format"].toString();
 	idata.imgName = message["name"].toString("");
-	idata.data = QByteArray::fromBase64(QByteArray(message["imagedata"].toString().toUtf8()));
+	idata.imagedata = message["imagedata"].toString();
 	QString replyMsg;
 
 	if (!BaseAPI::setImage(idata, COMP_IMAGE, replyMsg))
@@ -337,9 +334,12 @@ void HyperAPI::handleServerInfoCommand(const QJsonObject& message, const QString
 
 			QJsonObject ledDevices;
 			QJsonArray availableLedDevices;
-			for (auto dev : LedDeviceWrapper::getDeviceMap())
+			for (auto dev : hyperhdr::leds::GET_ALL_LED_DEVICE(nullptr))
 			{
-				availableLedDevices.append(dev.first);
+				QJsonObject driver;
+				driver["name"] = dev.name;
+				driver["group"] = dev.group;
+				availableLedDevices.append(driver);
 			}
 
 			ledDevices["available"] = availableLedDevices;
@@ -1028,7 +1028,7 @@ void HyperAPI::handleLutCalibrationCommand(const QJsonObject& message, const QSt
 	sendSuccessReply(command, tan);
 
 	if (subcommand == "capture")
-		_lutCalibrator->incomingCommand(_instanceManager->getRootPath(), _videoGrabber->grabberWrapper(), getActiveComponent(), checksum, _startColor, _endColor, limitedRange, saturation, luminance, gammaR, gammaG, gammaB, coef);
+		_lutCalibrator->incomingCommand(_instanceManager->getRootPath(), (_videoGrabber != nullptr) ? _videoGrabber->grabberWrapper() : nullptr, getActiveComponent(), checksum, _startColor, _endColor, limitedRange, saturation, luminance, gammaR, gammaG, gammaB, coef);
 	else
 		_lutCalibrator->stopHandler();	
 }
@@ -1126,7 +1126,7 @@ void HyperAPI::handleLedDeviceCommand(const QJsonObject& message, const QString&
 
 		if (subc == "discover")
 		{
-			ledDevice = std::unique_ptr<LedDevice>(LedDeviceFactory::construct(config));
+			ledDevice = std::unique_ptr<LedDevice>(hyperhdr::leds::CONSTRUCT_LED_DEVICE(config));
 			const QJsonObject& params = message["params"].toObject();
 			const QJsonObject devicesDiscovered = ledDevice->discover(params);
 
@@ -1136,7 +1136,7 @@ void HyperAPI::handleLedDeviceCommand(const QJsonObject& message, const QString&
 		}
 		else if (subc == "getProperties")
 		{
-			ledDevice = std::unique_ptr<LedDevice>(LedDeviceFactory::construct(config));
+			ledDevice = std::unique_ptr<LedDevice>(hyperhdr::leds::CONSTRUCT_LED_DEVICE(config));
 			const QJsonObject& params = message["params"].toObject();
 			const QJsonObject deviceProperties = ledDevice->getProperties(params);
 
@@ -1154,7 +1154,7 @@ void HyperAPI::handleLedDeviceCommand(const QJsonObject& message, const QString&
 			}
 			else
 			{
-				ledDevice = std::unique_ptr<LedDevice>(LedDeviceFactory::construct(config));
+				ledDevice = std::unique_ptr<LedDevice>(hyperhdr::leds::CONSTRUCT_LED_DEVICE(config));
 				ledDevice->identify(params);
 			}
 

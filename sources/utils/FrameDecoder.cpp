@@ -25,14 +25,9 @@
 *  SOFTWARE.
 */
 
-#ifndef PCH_ENABLED
-	#include <utils/Logger.h>
-#endif
 
+#include <utils/Logger.h>
 #include <utils/FrameDecoder.h>
-#include <utils/ColorSys.h>
-
-#include <turbojpeg.h>
 
 //#define TAKE_SCREEN_SHOT
 
@@ -43,7 +38,7 @@
 
 void FrameDecoder::processImage(
 	int _cropLeft, int _cropRight, int _cropTop, int _cropBottom,
-	const uint8_t* data, int width, int height, int lineLength,
+	const uint8_t* data, const uint8_t* dataUV, int width, int height, int lineLength,
 	const PixelFormat pixelFormat, const uint8_t* lutBuffer, Image<ColorRgb>& outputImage)
 {
 	uint32_t ind_lutd, ind_lutd2;
@@ -245,20 +240,20 @@ void FrameDecoder::processImage(
 
 	if (pixelFormat == PixelFormat::NV12)
 	{
-		int deltaU = lineLength * height;
+		auto deltaUV = (dataUV != nullptr) ? (uint8_t*)dataUV : (uint8_t*)data + lineLength * height;
 		for (int yDest = 0, ySource = _cropTop; yDest < outputHeight; ++ySource, ++yDest)
 		{
 			uint8_t* currentDest = destMemory + ((uint64_t)destLineSize) * yDest;
 			uint8_t* endDest = currentDest + destLineSize;
 			uint8_t* currentSource = (uint8_t*)data + (((uint64_t)lineLength * ySource) + ((uint64_t)_cropLeft));
-			uint8_t* currentSourceU = (uint8_t*)data + deltaU + (((uint64_t)ySource / 2) * lineLength) + ((uint64_t)_cropLeft);
+			uint8_t* currentSourceUV = deltaUV + (((uint64_t)ySource / 2) * lineLength) + ((uint64_t)_cropLeft);
 
 			while (currentDest < endDest)
 			{
 				*((uint16_t*)&buffer) = *((uint16_t*)currentSource);
 				currentSource += 2;
-				*((uint16_t*)&(buffer[2])) = *((uint16_t*)currentSourceU);
-				currentSourceU += 2;
+				*((uint16_t*)&(buffer[2])) = *((uint16_t*)currentSourceUV);
+				currentSourceUV += 2;
 
 				ind_lutd = LUT_INDEX(buffer[0], buffer[2], buffer[3]);
 				ind_lutd2 = LUT_INDEX(buffer[1], buffer[2], buffer[3]);
@@ -723,30 +718,6 @@ void FrameDecoder::processSystemImagePQ10(Image<ColorRgb>& image, int targetSize
 			dLine += 3;
 		}
 	}
-}
-
-void FrameDecoder::encodeJpeg(MemoryBuffer<uint8_t>& buffer, Image<ColorRgb>& inputImage, bool scaleDown)
-{
-	const int aspect = (scaleDown) ? 2 : 1;
-	const int width = inputImage.width();
-	const int height = inputImage.height() / aspect;
-	int pitch = width * sizeof(ColorRgb) * aspect;
-	int subSample = (scaleDown) ? TJSAMP_422 : TJSAMP_444;
-	int quality = 75;
-
-	unsigned long compressedImageSize = 0;
-	unsigned char* compressedImage = NULL;
-
-	tjhandle _jpegCompressor = tjInitCompress();
-
-	tjCompress2(_jpegCompressor, inputImage.rawMem(), width, pitch, height, TJPF_RGB,
-				&compressedImage, &compressedImageSize, subSample, quality, TJFLAG_FASTDCT);
-
-	buffer.resize(compressedImageSize);
-	memcpy(buffer.data(), compressedImage, compressedImageSize);
-
-	tjDestroy(_jpegCompressor);
-	tjFree(compressedImage);
 }
 
 

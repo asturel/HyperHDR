@@ -118,7 +118,7 @@ function connectionLostDetection(type)
 	}
 	else
 	{
-		$.get("/cgi/cfg_jsonserver", function () { window.watchdog = 0 }).fail(function () { window.watchdog++; });
+		$.get("/hyperhdr_heart_beat", function () { window.watchdog = 0 }).fail(function () { window.watchdog++; });
 	}
 }
 
@@ -478,9 +478,14 @@ function requestSetColor(r, g, b, duration)
 	sendToHyperhdr("color", "", '"color":[' + r + ',' + g + ',' + b + '], "priority":' + window.webPrio + ',"duration":' + validateDuration(duration) + ',"origin":"' + window.webOrigin + '"');
 }
 
-function requestSetImage(data, duration, name)
+
+
+function requestSetImage(data, SX, SY, duration, name)
 {
-	sendToHyperhdr("image", "", '"imagedata":"' + data + '", "priority":' + window.webPrio + ',"duration":' + validateDuration(duration) + ', "format":"auto", "origin":"' + window.webOrigin + '", "name":"' + name + '"');
+	sendToHyperhdr("image", "",  `"priority": ${window.webPrio},`+
+		`"duration": ${validateDuration(duration)} ,"imagedata":"${data}", "format":"auto", `+
+		`"imagewidth": ${SX}, "imageheight": ${SY},`+
+		`"origin": "${window.webOrigin}", "name": "${name}"`);
 }
 
 function requestSetComponentState(comp, state)
