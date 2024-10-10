@@ -1,0 +1,118 @@
+name: WebOS build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  TOOLCHAIN_URL: https://github.com/openlgtv/buildroot-nc4/releases/latest/download/arm-webos-linux-gnueabi_sdk-buildroot.tar.gz
+  TOOLCHAIN_DIR: /opt/arm-webos-linux-gnueabi_sdk-buildroot
+  TOOLCHAIN_ENV_FILE: /opt/arm-webos-linux-gnueabi_sdk-buildroot/environment-setup
+  TOOLCHAIN_FILE: /opt/arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake
+  BUILD_DIR: build
+
+  CCACHE_CACHE_DIR: .ccache-build
+  CCACHE_COMPRESS: true
+  CCACHE_COMPRESSLEVEL: 6
+  CCACHE_MAXSIZE: 600M
+
+jobs:
+  build_hyperhdr:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./hyperhdr-repo
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          path: hyperhdr-repo
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Restore/Cache build directories
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ github.workspace }}/${{ env.CCACHE_CACHE_DIR }}
+
+          key: ccache-${{ runner.os }}-${{github.run_id}}
+          restore-keys: |
+            ccache-${{ runner.os }}
+
+      - name: Create build directories
+        run: |
+          mkdir -p ./${{ env.BUILD_DIR }}
+
+      - name: Download and unpack toolchain
+        working-directory: /opt
+        run: |
+          wget -q -O toolchain.tar.gz ${TOOLCHAIN_URL}
+          tar xf toolchain.tar.gz
+
+      - name: Relocate toolchain
+        run: |
+          pushd ${TOOLCHAIN_DIR}
+          ./relocate-sdk.sh
+          popd
+
+      - name: Fix toolchain (remove perl)
+        run: |
+          find ${TOOLCHAIN_DIR}/bin -type f -iname "perl*" -delete
+
+      - name: Install native dependencies
+        env:
+          apt_deps: ccache git cmake build-essential flatbuffers-compiler
+        run: |
+          sudo apt update
+          sudo apt install -y ${{ env.apt_deps }}
+
+      - name: Build (webos arm)
+        env:
+          CCACHE_DIR: ${{ github.workspace }}/${{ env.CCACHE_CACHE_DIR }}
+        run: |
+          pushd ./${{ env.BUILD_DIR }}
+          cmake .. \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE} \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPLATFORM=linux \
+            -DENABLE_SPIDEV=OFF \
+            -DENABLE_FTDIDEV=ON \
+            -DENABLE_V4L2=OFF \
+            -DENABLE_X11=OFF \
+            -DENABLE_PIPEWIRE=OFF \
+            -DENABLE_SOUNDCAPLINUX=OFF \
+            -DENABLE_CEC=OFF \
+            -DENABLE_PROTOBUF=OFF \
+            -DENABLE_FRAMEBUFFER=OFF \
+            -DENABLE_POWER_MANAGEMENT=OFF
+          make
+          popd
+
+      - name: Copy built binaries to release/
+        run: |
+          mkdir ./release
+          cp -r ./${{ env.BUILD_DIR }}/bin/* ./release/
+          find ./release
+
+      - name: Copy dependencies to release/
+        env:
+          dependency_libs: libpng16.so.16 libjpeg.so.8 libcrypto.so.1.1 libz.so.1 libssl.so.1.1 libQt5Sql.so.5.15.2 libpcre2-16.so.0 libQt5Gui.so.5 libQt5Network.so.5 libQt5Widgets.so.5 libk5crypto.so.3 libatomic.so.1 libQt5Core.so.5 libkrb5support.so.0 libcom_err.so.3 libstdc++.so.6 libkrb5.so.3 libQt5Sql.so.5 libgssapi_krb5.so.2 libQt5SerialPort.so.5 libQt5Sql.so.5.15 libusb-1.0.so.0 libftdi1.so.2 libturbojpeg.so.0.2.0
+        run: |
+          for i in ${{ env.dependency_libs }}; do find ${TOOLCHAIN_DIR}/arm-webos-linux-gnueabi/sysroot/ -name $i -exec cp {} ./release/ \;; done
+          mkdir -p ./release/sqldrivers
+          mkdir -p ./release/imageformats
+          cp ${TOOLCHAIN_DIR}/arm-webos-linux-gnueabi/sysroot/usr/lib/qt/plugins/sqldrivers/libqsqlite.so ./release/sqldrivers/
+          cp ${TOOLCHAIN_DIR}/arm-webos-linux-gnueabi/sysroot/usr/lib/qt/plugins/imageformats/libqico.so ./release/imageformats/
+          cp ${TOOLCHAIN_DIR}/arm-webos-linux-gnueabi/sysroot/usr/lib/qt/plugins/imageformats/libqjpeg.so ./release/imageformats/
+          find ./release
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: hyperhdr-build
+          path: ${{ github.workspace }}/hyperhdr-repo/release/*
+          if-no-files-found: error
+
