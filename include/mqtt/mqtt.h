@@ -9,6 +9,8 @@
 #include <utils/Logger.h>
 #include <utils/Components.h>
 #include <utils/settings.h>
+#include <api/HyperAPI.h>
+
 
 #include <qmqtt.h>
 
@@ -33,10 +35,13 @@ private slots:
 	void error(const QMQTT::ClientError error);
 	void received(const QMQTT::Message& message);
 	void disconnected();
+	void handleCallback(QJsonObject obj);
 
 private:
 	void executeJson(QString origin, const QJsonDocument& input, QJsonDocument& result);
 	void initRetry();
+	void sendPayload(QJsonObject payload);
+	void sendHelloOrByePayload(bool connected);
 
 	// HyperHDR MQTT topic & reponse path
 	QString			HYPERHDRAPI;
@@ -58,5 +63,6 @@ private:
 	QJsonArray	_resultArray;
 
 	Logger*		_log;
-	QMQTT::Client*	_clientInstance;	
+	QMQTT::Client*	_clientInstance;
+	HyperAPI*    _jsonAPI;
 };

@@ -26,8 +26,13 @@ mqtt::mqtt(const QJsonDocument& mqttConfig)
 	, _initialized(false)
 	, _log(Logger::getInstance("MQTT"))
 	, _clientInstance(nullptr)
+	, _jsonAPI(nullptr)
 {
 	handleSettingsUpdate(settings::type::MQTT, mqttConfig);
+	//const QString client = QString("MQTT");
+	//_jsonAPI = new HyperAPI(client, _log, true, this, true);
+	//connect(_jsonAPI, &HyperAPI::SignalCallbackJsonMessage, this, &mqtt::handleCallback);
+	//_jsonAPI->initialize();
 }
 
 mqtt::~mqtt()
@@ -60,7 +65,7 @@ void mqtt::start(QString host, int port, QString username, QString password, boo
 			address = info.addresses().first();
 		Debug(_log, "The search for IP has finished: %s => %s", QSTRING_CSTR(host), QSTRING_CSTR(address.toString()));
 	}
-	
+
 	if (is_ssl)
 	{
 		QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
@@ -90,6 +95,12 @@ void mqtt::start(QString host, int port, QString username, QString password, boo
 	QObject::connect(_clientInstance, &QMQTT::Client::received, this, &mqtt::received);
 	QObject::connect(_clientInstance, &QMQTT::Client::disconnected, this, &mqtt::disconnected);
 	_clientInstance->connectToHost();
+	if (_jsonAPI == nullptr) {
+		const QString client = QStringLiteral("MQTT");
+		_jsonAPI = new HyperAPI(client, _log, true, this, false);
+		connect(_jsonAPI, &HyperAPI::SignalCallbackJsonMessage, this, &mqtt::handleCallback);
+		_jsonAPI->initialize();
+	}
 }
 
 void mqtt::stop()
@@ -97,10 +108,17 @@ void mqtt::stop()
 	if (_clientInstance != nullptr)
 	{
 		Debug(_log, "Closing MQTT");
+		sendHelloOrByePayload(false);
 		disconnect(_clientInstance, nullptr, this, nullptr);
 		_clientInstance->disconnectFromHost();
 		_clientInstance->deleteLater();
 		_clientInstance = nullptr;
+	}
+	if (_jsonAPI != nullptr)
+	{
+		disconnect(_jsonAPI, nullptr, this, nullptr);
+		delete _jsonAPI;
+		_jsonAPI = nullptr;
 	}
 }
 
@@ -124,6 +142,7 @@ void mqtt::connected()
 	if (_clientInstance != nullptr)
 	{
 		_clientInstance->subscribe(HYPERHDRAPI, 2);
+		sendHelloOrByePayload(true);
 	}
 }
 
@@ -223,7 +242,7 @@ void mqtt::handleSettingsUpdate(settings::type type, const QJsonDocument& config
 		}
 
 		_initialized = true;
-	}	
+	}
 }
 
 void mqtt::begin()
@@ -233,7 +252,7 @@ void mqtt::begin()
 }
 
 void mqtt::executeJson(QString origin, const QJsonDocument& input, QJsonDocument& result)
-{	
+{
 	HyperAPI* _hyperAPI = new HyperAPI(origin, _log, true, this);
 
 	_resultArray = QJsonArray();
@@ -280,6 +299,7 @@ void mqtt::received(const QMQTT::Message& message)
 
 	if (QString::compare(HYPERHDRAPI, topic) == 0 && payload.length() > 0)
 	{
+		/*
 		QJsonParseError error;
 		QJsonDocument doc = QJsonDocument::fromJson(payload.toUtf8(), &error);
 		QMQTT::Message result;
@@ -296,7 +316,44 @@ void mqtt::received(const QMQTT::Message& message)
 			QString returnPayload = resJson.toJson(QJsonDocument::Compact);
 			Debug(_log, "JSON result: %s", QSTRING_CSTR(returnPayload));
 			result.setPayload(returnPayload.toUtf8());
-		}		
-		_clientInstance->publish(result);		
+		}
+		_clientInstance->publish(result);
+		*/
+		_jsonAPI->handleMessage(payload);
+
+	}
+}
+
+void mqtt::sendPayload(QJsonObject payload) {
+	if (_clientInstance != nullptr) {
+		QMQTT::Message report;
+		report.setTopic(HYPERHDRAPI_RESPONSE);
+		report.setQos(2);
+		report.setPayload(QJsonDocument(payload).toJson());
+		_clientInstance->publish(report);
+		//Debug(_log, "Sending payload: '%s'", QJsonDocument(payload).toJson());
+	}
+}
+
+void mqtt::handleCallback(QJsonObject obj)
+{
+	if (_clientInstance != nullptr) {
+		sendPayload(obj);
+	}
+}
+
+void mqtt::sendHelloOrByePayload(bool connected) {
+	if (_clientInstance != nullptr) {
+		QJsonObject payload;
+		if (connected) {
+			payload.insert("command", "alive");
+		} else {
+			payload.insert("command", "bye");
+		}
+		QJsonObject info;
+		info.insert("on", connected);
+		payload.insert("success", true);
+		payload.insert("info", info);
+		sendPayload(payload);
 	}
 }
