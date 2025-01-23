@@ -38,7 +38,7 @@ set_target_properties(sqlite3 PROPERTIES
 target_compile_definitions(sqlite3 PUBLIC
 	SQLITE_THREADSAFE=2
 	SQLITE_DEFAULT_MEMSTATUS=0
-	SQLITE_DEFAULT_SYNCHRONOUS=3	
+	SQLITE_DEFAULT_SYNCHRONOUS=3
 	SQLITE_OMIT_AUTHORIZATION
 	SQLITE_OMIT_DEPRECATED
 )
@@ -75,7 +75,7 @@ if(ENABLE_WS281XPWM)
 	string(REPLACE "configure_file(version.h.in version.h)" [=[configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/version.h)]=] FILE_CONTENTS "${FILE_CONTENTS}")
 	file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/rpi_ws281x/CMakeLists.txt" "${FILE_CONTENTS}")
 
-	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/rpi_ws281x)			
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/rpi_ws281x)
 endif()
 
 #=============================================================================
@@ -125,7 +125,7 @@ if (NOT USE_SYSTEM_FLATBUFFERS_LIBS OR CMAKE_CROSSCOMPILING)
 	cmake_policy(PUSH)
 
 	set(CMAKE_POLICY_DEFAULT_CMP0071 NEW)
-	set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "")	
+	set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "")
 
 	if (NOT CMAKE_CROSSCOMPILING AND USE_PRECOMPILED_HEADERS)
 		set(FLATBUFFERS_ENABLE_PCH ON CACHE BOOL "")
@@ -142,7 +142,7 @@ if (NOT USE_SYSTEM_FLATBUFFERS_LIBS OR CMAKE_CROSSCOMPILING)
 		unset(FLATBUFFERS_FLATC_EXECUTABLE)
 		set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "")
 		set(FLATBUFFERS_BUILD_FLATHASH OFF CACHE BOOL "")
-		set(FLATBUFFERS_HOST_FLATBUFFERS_DIR ${CMAKE_CURRENT_BINARY_DIR}/host_flatc)		
+		set(FLATBUFFERS_HOST_FLATBUFFERS_DIR ${CMAKE_CURRENT_BINARY_DIR}/host_flatc)
 		file(MAKE_DIRECTORY ${FLATBUFFERS_HOST_FLATBUFFERS_DIR})
 
 		EXECUTE_PROCESS ( WORKING_DIRECTORY ${FLATBUFFERS_HOST_FLATBUFFERS_DIR} RESULT_VARIABLE EXEC_RES
@@ -168,7 +168,7 @@ if (NOT USE_SYSTEM_FLATBUFFERS_LIBS OR CMAKE_CROSSCOMPILING)
 		set(FLATBUFFERS_FLATC_EXECUTABLE "$<TARGET_FILE:flatc>")
 	else()
 		message( STATUS "Using host flatc compiler: ${FLATBUFFERS_FLATC_EXECUTABLE}")
-	endif()	
+	endif()
 
 	cmake_policy(POP)
 endif()
@@ -177,7 +177,7 @@ set(FLATBUFFERS_FLATC_EXECUTABLE ${FLATBUFFERS_FLATC_EXECUTABLE} PARENT_SCOPE)
 set(FLATBUFFERS_INCLUDE_DIRS ${FLATBUFFERS_INCLUDE_DIRS} PARENT_SCOPE)
 include_directories(${FLATBUFFERS_INCLUDE_DIRS})
 
-if (FLATBUFFERS_INCLUDE_DIRS AND EXISTS "${FLATBUFFERS_INCLUDE_DIRS}/../package.json")		
+if (FLATBUFFERS_INCLUDE_DIRS AND EXISTS "${FLATBUFFERS_INCLUDE_DIRS}/../package.json")
 		file(STRINGS "${FLATBUFFERS_INCLUDE_DIRS}/../package.json" _FLATBUFFERS_VERSION_STRING REGEX "^[ \t\r\n]+\"version\":[ \t\r\n]+\"[0-9]+.[0-9]+.[0-9]+\",")
 		string(REGEX REPLACE "^[ \t\r\n]+\"version\":[ \t\r\n]+\"([0-9]+.[0-9]+.[0-9]+)\"," "\\1" FLATBUFFERS_PARSE_VERSION "${_FLATBUFFERS_VERSION_STRING}")
 		message(STATUS "Using flatbuffers libraries version: \"${FLATBUFFERS_PARSE_VERSION}\"")
@@ -220,7 +220,7 @@ if ( ENABLE_MQTT )
 		# HyperHDR workaround for fixed Qt5 version
 		file(READ "${CMAKE_CURRENT_SOURCE_DIR}/qmqtt/CMakeLists.txt" FILE_CONTENTS)
 		string(REPLACE "Qt5" "Qt${Qt_VERSION}" FILE_CONTENTS "${FILE_CONTENTS}")
-		string(REPLACE "find_package" "#find_package" FILE_CONTENTS "${FILE_CONTENTS}")		
+		string(REPLACE "find_package" "#find_package" FILE_CONTENTS "${FILE_CONTENTS}")
 		file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/qmqtt/CMakeLists.txt" "${FILE_CONTENTS}")
 
 		cmake_policy(PUSH)
@@ -237,16 +237,22 @@ if ( ENABLE_MQTT )
 endif()
 
 #=============================================================================
-# XZ
+# ZSTD
 #=============================================================================
 
-if ( ENABLE_XZ )
-	if (NOT LIBLZMA_FOUND)
-		message( STATUS "System library xz could not be found. Using embedded xz library.")
-		option(BUILD_TESTING "" OFF)
-		add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/xz)
-		set_target_properties(liblzma PROPERTIES INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/external/xz/src/liblzma/api>)		
-		add_library(LibLZMA::LibLZMA ALIAS liblzma)
+if ( ENABLE_ZSTD )
+	if (NOT zstd_FOUND)
+		message( STATUS "System library zstd could not be found. Using embedded zstd library.")
+		if(WIN32)
+			set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -I${CMAKE_SOURCE_DIR}/external/zstd/lib")
+		endif()
+		set(ZSTD_BUILD_TESTS OFF)
+		set(ZSTD_LEGACY_SUPPORT OFF)
+		set(ZSTD_BUILD_PROGRAMS OFF)
+		add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/zstd/build/cmake)
+		set_target_properties(libzstd PROPERTIES INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/external/zstd/lib>)
+		set_property(TARGET libzstd PROPERTY POSITION_INDEPENDENT_CODE ON)
+		add_library(zstd::zstd ALIAS libzstd)
 	endif()
 ENDIF()
 

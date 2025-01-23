@@ -17,9 +17,9 @@ macro(DeployApple TARGET)
 			install(CODE [[ file(INSTALL FILES $<TARGET_FILE:sqlite3> DESTINATION "${CMAKE_INSTALL_PREFIX}/hyperhdr.app/Contents/lib" TYPE SHARED_LIBRARY) ]] COMPONENT "HyperHDR")
 		endif()
 
-		# Copy utils-xz
-		if (USE_SHARED_LIBS AND TARGET utils-xz)
-			install(CODE [[ file(INSTALL FILES $<TARGET_FILE:utils-xz> DESTINATION "${CMAKE_INSTALL_PREFIX}/hyperhdr.app/Contents/lib" TYPE SHARED_LIBRARY) ]] COMPONENT "HyperHDR")
+		# Copy utils-zstd
+		if (USE_SHARED_LIBS AND TARGET utils-zstd)
+			install(CODE [[ file(INSTALL FILES $<TARGET_FILE:utils-zstd> DESTINATION "${CMAKE_INSTALL_PREFIX}/hyperhdr.app/Contents/lib" TYPE SHARED_LIBRARY) ]] COMPONENT "HyperHDR")
 		endif()
 
 		# Copy utils-image
@@ -240,9 +240,9 @@ macro(DeployUnix TARGET)
 			install(CODE [[ file(INSTALL FILES $<TARGET_FILE:utils-image> DESTINATION "${CMAKE_INSTALL_PREFIX}/share/hyperhdr/lib" TYPE SHARED_LIBRARY) ]] COMPONENT "HyperHDR")
 		endif()
 
-		# Copy UTILS-XZ lib
-		if (TARGET utils-image)
-			install(CODE [[ file(INSTALL FILES $<TARGET_FILE:utils-xz> DESTINATION "${CMAKE_INSTALL_PREFIX}/share/hyperhdr/lib" TYPE SHARED_LIBRARY) ]] COMPONENT "HyperHDR")
+		# Copy UTILS-ZSTD lib
+		if (TARGET utils-zstd)
+			install(CODE [[ file(INSTALL FILES $<TARGET_FILE:utils-zstd> DESTINATION "${CMAKE_INSTALL_PREFIX}/share/hyperhdr/lib" TYPE SHARED_LIBRARY) ]] COMPONENT "HyperHDR")
 		endif()
 
 
@@ -351,7 +351,7 @@ macro(DeployUnix TARGET)
 			"librt"
 			"libstdc++"
 			"libudev"
-			"libz"
+			"libz.so"
 			"libxrender1"
 			"libxi6"
 			"libxext6"
@@ -590,9 +590,9 @@ macro(DeployWindows TARGET)
 			install(CODE [[ file(INSTALL FILES $<TARGET_FILE:sqlite3> DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE SHARED_LIBRARY) ]] COMPONENT "HyperHDR")
 		endif()
 
-		# Copy utils-xz
-		if (USE_SHARED_LIBS AND TARGET utils-xz)
-			install(CODE [[ file(INSTALL FILES $<TARGET_FILE:utils-xz> DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE SHARED_LIBRARY) ]] COMPONENT "HyperHDR")
+		# Copy utils-zstd
+		if (USE_SHARED_LIBS AND TARGET utils-zstd)
+			install(CODE [[ file(INSTALL FILES $<TARGET_FILE:utils-zstd> DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE SHARED_LIBRARY) ]] COMPONENT "HyperHDR")
 		endif()
 
 		# Copy utils-image
