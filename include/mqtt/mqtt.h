@@ -4,13 +4,13 @@
 	#include <QSet>
 	#include <QJsonDocument>
 	#include <QTimer>
-	#include <QStringList>
-	#include <map>
 #endif
 
 #include <utils/Logger.h>
 #include <utils/Components.h>
 #include <utils/settings.h>
+#include <api/HyperAPI.h>
+
 
 #include <qmqtt.h>
 
@@ -30,19 +30,18 @@ public slots:
 
 	void handleSettingsUpdate(settings::type type, const QJsonDocument& config);
 
-	void handleSignalMqttSubscribe(bool subscribe, QString topic);
-	void handleSignalMqttPublish(QString topic, QString payload);
-	void handleSignalMqttLastWill(QString id, QStringList pairs);
-
 private slots:
 	void connected();
 	void error(const QMQTT::ClientError error);
 	void received(const QMQTT::Message& message);
 	void disconnected();
+	void handleCallback(QJsonObject obj);
 
 private:
 	void executeJson(QString origin, const QJsonDocument& input, QJsonDocument& result);
 	void initRetry();
+	void sendPayload(QJsonObject payload);
+	void sendHelloOrByePayload(bool connected);
 
 	// HyperHDR MQTT topic & reponse path
 	QString			HYPERHDRAPI;
@@ -62,10 +61,8 @@ private:
 	QTimer*		_retryTimer;
 	bool		_initialized;
 	QJsonArray	_resultArray;
-	bool		_disableApiAccess;
-
-	std::map<QString, QStringList> _lastWill;
 
 	Logger*		_log;
-	QMQTT::Client*	_clientInstance;	
+	QMQTT::Client*	_clientInstance;
+	HyperAPI*    _jsonAPI;
 };
