@@ -6,9 +6,27 @@
 #include <utility>
 #include <tuple>
 #include <QHostAddress>
+#include <QtGlobal>
+#include <QtCore/qendian.h>
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+
+template<typename T>
+static inline T qToLittleEndian(T v)
+{
+    return qToLittleEndian(static_cast<typename QtPrivate::qSwapType<T>::Type>(v));
+}
+
+template<typename T>
+static inline T qFromLittleEndian(T v)
+{
+    return qFromLittleEndian(static_cast<typename QtPrivate::qSwapType<T>::Type>(v));
+}
+
+#endif
 
 class DriverNetLifx : public ProviderUdp
-{	
+{
 public:
 	explicit DriverNetLifx(const QJsonObject& deviceConfig);
 	static LedDevice* construct(const QJsonObject& deviceConfig);
