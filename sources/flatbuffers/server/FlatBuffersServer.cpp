@@ -239,7 +239,7 @@ void FlatBuffersServer::startServer()
 	if (_domain != nullptr && !_domain->isListening())
 	{
 		if (!QLocalServer::removeServer(HYPERHDR_DOMAIN_SERVER)) {
-			Warning(_log,"Failed to clean up local domain socket '%s'", QSTRING_CSTR(QString(HYPERHDR_DOMAIN_SERVER)));
+			Warning(_log,"Failed to clean up local domain socket '{:s}'", (QString(HYPERHDR_DOMAIN_SERVER)));
 		}
 		if (!_domain->listen(HYPERHDR_DOMAIN_SERVER))
 			Error(_log, "Could not start local domain socket server '{:s}'", (QString(HYPERHDR_DOMAIN_SERVER)));
