@@ -86,7 +86,57 @@ namespace
 		return linearRgbToOklab(srgbNlToLinear3(c));
 	}
 
-	inline float3 oklabToNlRgb(const float3& lab)
+	// ---- Gamut clamp ------------------------------------------------------
+	// The chroma boost can push a color out of the sRGB gamut. The naive
+	// per-channel clamp inside the Oklab->sRGB conversion would then shift
+	// the hue (e.g. a dark red becomes a pure saturated red, brown becomes
+	// orange, etc.). To avoid that we binary-search the maximum chroma
+	// that still fits in sRGB before doing the conversion.
+	//
+	// 5 iterations are enough for visual purposes: the error is well below
+	// one 8-bit RGB step.
+
+	inline bool isInsideGamut(const float3& lab)
+	{
+		const float3 lin = oklabToLinearRgb(lab);
+		return lin.x >= 0.0f && lin.x <= 1.0f
+		    && lin.y >= 0.0f && lin.y <= 1.0f
+		    && lin.z >= 0.0f && lin.z <= 1.0f;
+	}
+
+	inline float3 clampChromaToGamut(const float3& lab)
+	{
+		if (isInsideGamut(lab))
+			return lab;
+
+		const float L = lab.x;
+		const float a = lab.y;
+		const float b = lab.z;
+
+		const float chroma = std::sqrt(a * a + b * b);
+		if (chroma < 1e-5f)
+			return lab;
+
+		const float dirA = a / chroma;
+		const float dirB = b / chroma;
+
+		float lo = 0.0f;
+		float hi = chroma;
+
+		for (int i = 0; i < 5; ++i)
+		{
+			const float mid = 0.5f * (lo + hi);
+			const float3 test{ L, dirA * mid, dirB * mid };
+			if (isInsideGamut(test))
+				lo = mid;
+			else
+				hi = mid;
+		}
+
+		return { L, dirA * lo, dirB * lo };
+	}
+
+	inline float3 oklabToNlRgbSafe(const float3& lab)
 	{
 		return srgbLinearToNl3(linalg::clamp(oklabToLinearRgb(lab), 0.0f, 1.0f));
 	}
@@ -215,7 +265,10 @@ void InfiniteKineticInterpolator::setTargetColors(std::vector<float3>&& new_rgb_
 		spatialSmoothOklab(targets, effectiveSpatial);
 	}
 
-	// 4. Chroma boost
+	// 4. Chroma boost (after spatial, before temporal).
+	//    We gamut-clamp here so the temporal integration always works with
+	//    valid sRGB-representable colors. This is what prevents the
+	//    "dark color becomes pure red" artifact.
 	if (_chromaBoost > 0.0f)
 	{
 		const float scale = 1.0f + _chromaBoost;
@@ -223,6 +276,7 @@ void InfiniteKineticInterpolator::setTargetColors(std::vector<float3>&& new_rgb_
 		{
 			lab.y *= scale;
 			lab.z *= scale;
+			lab = clampChromaToGamut(lab);
 		}
 	}
 
@@ -303,7 +357,14 @@ SharedOutputColors InfiniteKineticInterpolator::getCurrentColors(float minBright
 
 		for (size_t i = 0; i < _currentOklab.size(); ++i)
 		{
-			float3 rgb = oklabToNlRgb(_currentOklab[i]);
+			// Gamut clamp the current color too. Even though setTargetColors
+			// already clamped the target, the temporal integration can still
+			// produce intermediate values that momentarily exceed the gamut.
+			// This is the last line of defense against the "hue shift on dark
+			// colors" bug.
+			const float3 lab = clampChromaToGamut(_currentOklab[i]);
+
+			float3 rgb = oklabToNlRgbSafe(lab);
 
 			if (minBrightness > 0.0f)
 			{
