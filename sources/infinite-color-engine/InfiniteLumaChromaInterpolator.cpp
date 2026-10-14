@@ -49,18 +49,67 @@ namespace
 			 0.0259040371f * l_ + 0.7827717662f * m_ - 0.8086757660f * s_
 		};
 	}
-	inline float3 oklabToNlRgb(const float3& lab)
+
+	// ---- Inline Oklab -> linear RGB (used by isInsideGamut) --------------
+	inline float3 oklabToLinearRgb(const float3& lab)
 	{
 		const float l_ = lab.x + 0.3963377774f * lab.y + 0.2158037573f * lab.z;
 		const float m_ = lab.x - 0.1055613458f * lab.y - 0.0638541728f * lab.z;
 		const float s_ = lab.x - 0.0894841775f * lab.y - 1.2914855480f * lab.z;
 		const float l = l_ * l_ * l_, m = m_ * m_ * m_, s = s_ * s_ * s_;
 
-		const float r = 4.0767416621f * l - 3.3077115913f * m + 0.2309699292f * s;
-		const float g = -1.2684380046f * l + 2.6097574011f * m - 0.3413193965f * s;
-		const float b = -0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s;
+		return {
+			 4.0767416621f * l - 3.3077115913f * m + 0.2309699292f * s,
+			-1.2684380046f * l + 2.6097574011f * m - 0.3413193965f * s,
+			-0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s
+		};
+	}
 
-		return { srgbLinearToNl(r), srgbLinearToNl(g), srgbLinearToNl(b) };
+	inline float3 oklabToNlRgb(const float3& lab)
+	{
+		const float3 lin = linalg::clamp(oklabToLinearRgb(lab), 0.0f, 1.0f);
+		return { srgbLinearToNl(lin.x), srgbLinearToNl(lin.y), srgbLinearToNl(lin.z) };
+	}
+
+	// ---- Gamut clamp ------------------------------------------------------
+	inline bool isInsideGamut(const float3& lab)
+	{
+		const float3 lin = oklabToLinearRgb(lab);
+		return lin.x >= 0.0f && lin.x <= 1.0f
+		    && lin.y >= 0.0f && lin.y <= 1.0f
+		    && lin.z >= 0.0f && lin.z <= 1.0f;
+	}
+
+	inline float3 clampChromaToGamut(const float3& lab)
+	{
+		if (isInsideGamut(lab))
+			return lab;
+
+		const float L = lab.x;
+		const float a = lab.y;
+		const float b = lab.z;
+
+		const float chroma = std::sqrt(a * a + b * b);
+		if (chroma < 1e-5f)
+			return lab;
+
+		const float dirA = a / chroma;
+		const float dirB = b / chroma;
+
+		float lo = 0.0f;
+		float hi = chroma;
+
+		for (int i = 0; i < 5; ++i)
+		{
+			const float mid = 0.5f * (lo + hi);
+			const float3 test{ L, dirA * mid, dirB * mid };
+			if (isInsideGamut(test))
+				lo = mid;
+			else
+				hi = mid;
+		}
+
+		return { L, dirA * lo, dirB * lo };
 	}
 }
 
@@ -157,7 +206,13 @@ SharedOutputColors InfiniteLumaChromaInterpolator::getCurrentColors(float minBri
 	for (size_t i = 0; i < _L.size(); ++i)
 	{
 		const float3 lab{ _L[i], _ab[i].x, _ab[i].y };
-		out[i] = oklabToNlRgb(lab);
+
+		// Luma and chroma smooth with different time constants, so the
+		// combined (L, a, b) can briefly leave the sRGB gamut. Clamp the
+		// chroma to the maximum in-gamut value at this L before conversion.
+		const float3 safeLab = clampChromaToGamut(lab);
+
+		out[i] = oklabToNlRgb(safeLab);
 		if (minBrightness > 0.0f)
 			out[i] = linalg::clamp(out[i], minBrightness, 1.0f);
 	}

@@ -87,7 +87,53 @@ namespace
 		return linearRgbToOklab(srgbNlToLinear3(c));
 	}
 
-	inline float3 oklabToNlRgb(const float3& lab)
+	// ---- Gamut clamp ------------------------------------------------------
+	// The spring physics and spatial smoothing can push Oklab values outside
+	// the sRGB gamut. A naive per-channel clamp after conversion shifts the
+	// hue (dark red becomes pure red, brown becomes orange, etc.).
+	// Binary-search the maximum in-gamut chroma at the same L and hue.
+
+	inline bool isInsideGamut(const float3& lab)
+	{
+		const float3 lin = oklabToLinearRgb(lab);
+		return lin.x >= 0.0f && lin.x <= 1.0f
+		    && lin.y >= 0.0f && lin.y <= 1.0f
+		    && lin.z >= 0.0f && lin.z <= 1.0f;
+	}
+
+	inline float3 clampChromaToGamut(const float3& lab)
+	{
+		if (isInsideGamut(lab))
+			return lab;
+
+		const float L = lab.x;
+		const float a = lab.y;
+		const float b = lab.z;
+
+		const float chroma = std::sqrt(a * a + b * b);
+		if (chroma < 1e-5f)
+			return lab;
+
+		const float dirA = a / chroma;
+		const float dirB = b / chroma;
+
+		float lo = 0.0f;
+		float hi = chroma;
+
+		for (int i = 0; i < 5; ++i)
+		{
+			const float mid = 0.5f * (lo + hi);
+			const float3 test{ L, dirA * mid, dirB * mid };
+			if (isInsideGamut(test))
+				lo = mid;
+			else
+				hi = mid;
+		}
+
+		return { L, dirA * lo, dirB * lo };
+	}
+
+	inline float3 oklabToNlRgbSafe(const float3& lab)
 	{
 		return srgbLinearToNl3(linalg::clamp(oklabToLinearRgb(lab), 0.0f, 1.0f));
 	}
@@ -164,6 +210,11 @@ void InfinitePerceptualInterpolator::resetToColors(std::vector<float3> colors, l
 		c = nlRgbToOklab(c);
 	spatialSmoothOklab(colors, _spatialSmoothing);
 
+	// Gamut clamp after smoothing: the average of two in-gamut colors in
+	// Oklab is not guaranteed to be in-gamut.
+	for (auto& lab : colors)
+		lab = clampChromaToGamut(lab);
+
 	_currentColorsOklab = colors;
 	_targetColorsOklab  = std::move(colors);
 	_velocitiesOklab.assign(_currentColorsOklab.size(), float3{ 0, 0, 0 });
@@ -187,8 +238,12 @@ void InfinitePerceptualInterpolator::setTargetColors(std::vector<float3>&& new_r
 	               new_targets_oklab.begin(),
 	               [](const float3& c) { return nlRgbToOklab(c); });
 
-	// Spatial smoothing on the target itself (keeps the visual center of mass stable)
+	// Spatial smoothing on the target itself
 	spatialSmoothOklab(new_targets_oklab, _spatialSmoothing);
+
+	// Gamut clamp after spatial smoothing
+	for (auto& lab : new_targets_oklab)
+		lab = clampChromaToGamut(lab);
 
 	const float delta = (!_isAnimationComplete)
 		? std::clamp(static_cast<float>(startTimeMs - _lastUpdate), 0.0f, 100.0f)
@@ -221,6 +276,7 @@ void InfinitePerceptualInterpolator::setTargetColors(std::vector<float3>&& new_r
 			     ++itOld, ++itNew)
 			{
 				*itOld = *itOld * _smoothingFactor + *itNew * inv;
+				*itOld = clampChromaToGamut(*itOld);
 			}
 		}
 		else
@@ -270,7 +326,10 @@ void InfinitePerceptualInterpolator::updateCurrentColors(long long currentTimeMs
 		vel += acc * (dt * 0.001f);
 		cur += vel * (dt * 0.001f);
 
-		// Clamp to the Oklab gamut envelope
+		// Envelope clamp (a rectangle in a/b, avoids velocity explosion).
+		// The actual sRGB gamut is inside this envelope, so this clamp does
+		// not distort any visible color by itself. The proper gamut clamp
+		// happens right before output conversion.
 		if (cur.x < L_MIN)  { cur.x = L_MIN;  vel.x = 0.f; }
 		if (cur.x > L_MAX)  { cur.x = L_MAX;  vel.x = 0.f; }
 		if (cur.y < AB_MIN) { cur.y = AB_MIN; vel.y = 0.f; }
@@ -303,14 +362,16 @@ SharedOutputColors InfinitePerceptualInterpolator::getCurrentColors(float minBri
 	if (_currentColorsRGB.empty() && !_currentColorsOklab.empty())
 	{
 		_currentColorsRGB.resize(_currentColorsOklab.size());
-		std::transform(_currentColorsOklab.begin(), _currentColorsOklab.end(),
-		               _currentColorsRGB.begin(),
-		               [](const float3& lab) { return oklabToNlRgb(lab); });
 
-		if (minBrightness > 0.0f)
+		for (size_t i = 0; i < _currentColorsOklab.size(); ++i)
 		{
-			for (auto& c : _currentColorsRGB)
-				c = linalg::clamp(c, minBrightness, 1.0f);
+			// Final gamut clamp before the sRGB conversion. Prevents the
+			// hue shift on out-of-gamut intermediate colors.
+			const float3 lab = clampChromaToGamut(_currentColorsOklab[i]);
+			_currentColorsRGB[i] = oklabToNlRgbSafe(lab);
+
+			if (minBrightness > 0.0f)
+				_currentColorsRGB[i] = linalg::clamp(_currentColorsRGB[i], minBrightness, 1.0f);
 		}
 	}
 	return std::make_shared<std::vector<float3>>(_currentColorsRGB);
