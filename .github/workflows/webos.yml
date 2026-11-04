@@ -177,6 +177,14 @@ jobs:
           echo "------------------ ARCH TEST -------------------"
           file ${TOOLCHAIN_DIR}/arm-webos-linux-gnueabi/sysroot/usr/local/qt6/lib/libQt6SerialPort.so*
 
+      - name: Save toolchain + Qt cache
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ env.TOOLCHAIN_DIR }}
+            ${{ env.QT_DIR }}
+          key: ${{ steps.cache-toolchain.outputs.cache-primary-key }}
 
       - name: Build (webos arm)
         env:
