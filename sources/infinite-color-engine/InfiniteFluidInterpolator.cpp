@@ -29,7 +29,7 @@ namespace
 		v = std::clamp(v, 0.0f, 1.0f);
 		return (v <= 0.04045f) ? (v / 12.92f) : std::pow((v + 0.055f) / 1.055f, 2.4f);
 	}
-	
+
 	inline float srgbLinearToNl(float v)
 	{
 		v = std::clamp(v, 0.0f, 1.0f);
@@ -38,9 +38,12 @@ namespace
 
 	inline float3 nlRgbToOklab(const float3& c)
 	{
-		const float r = srgbNlToLinear(c.x);
-		const float g = srgbNlToLinear(c.y);
-		const float b = srgbNlToLinear(c.z);
+		// const float r = srgbNlToLinear(c.x);
+		// const float g = srgbNlToLinear(c.y);
+		// const float b = srgbNlToLinear(c.z);
+		const float r = c.x;
+    	const float g = c.y;
+    	const float b = c.z;
 		const float l = 0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b;
 		const float m = 0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b;
 		const float s = 0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b;
@@ -101,7 +104,7 @@ namespace
 	void applyStrongSpatialBlur(std::vector<float3>& colors, float strength, int iterations)
 	{
 		if (strength <= 0.0f || colors.size() < 3) return;
-		
+
 		const size_t n = colors.size();
 		std::vector<float3> tmp(n);
 		const float half = 0.5f * strength;
@@ -109,7 +112,7 @@ namespace
 		for (int iter = 0; iter < iterations; ++iter) {
 			tmp[0]     = (1.0f - strength) * colors[0]     + strength * colors[1];
 			tmp[n - 1] = (1.0f - strength) * colors[n - 1] + strength * colors[n - 2];
-			
+
 			for (size_t i = 1; i + 1 < n; ++i) {
 				tmp[i] = (1.0f - strength) * colors[i] + half * (colors[i - 1] + colors[i + 1]);
 			}
@@ -224,7 +227,7 @@ SharedOutputColors InfiniteFluidInterpolator::getCurrentColors(float minBrightne
 	if (_outputRgb.empty() && !_currentOklab.empty())
 	{
 		std::vector<float3> outColors = _currentOklab;
-		
+
 		// Final spatial smoothing pass on the output for perfect continuity
 		applyStrongSpatialBlur(outColors, _spatialStrength, 2);
 
@@ -232,8 +235,10 @@ SharedOutputColors InfiniteFluidInterpolator::getCurrentColors(float minBrightne
 		for (size_t i = 0; i < outColors.size(); ++i)
 		{
 			float3 lab = clampChromaToGamut(outColors[i]);
-			_outputRgb[i] = oklabToNlRgbSafe(lab);
-			
+			// _outputRgb[i] = oklabToNlRgbSafe(lab);
+			const float3 lin = oklabToLinearRgb(lab);
+			_outputRgb[i] = linalg::clamp(lin, 0.0f, 1.0f);
+
 			if (minBrightness > 0.0f)
 				_outputRgb[i] = linalg::clamp(_outputRgb[i], minBrightness, 1.0f);
 		}
